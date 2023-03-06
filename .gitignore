@@ -1,0 +1,7 @@
+
+# Mac OS
+.DS_Store
+
+# outputs
+/output
+/dist

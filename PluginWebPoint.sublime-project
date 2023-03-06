@@ -1,0 +1,35 @@
+{
+  "folders":
+  [
+    {
+      "path": ".",
+    },
+  ],
+  "settings":
+  {
+    "tab_size": 2,
+  },
+  "build_systems":
+  [
+    {
+      "name": "Build Web",
+      "working_dir": "$project_path",
+      "cmd": ["bash", "./build.sh", "--web-only"],
+    },
+    {
+      "name": "Build Application",
+      "working_dir": "$project_path",
+      "cmd": ["bash", "./build.sh"],
+    },
+    {
+      "name": "Build & Run",
+      "working_dir": "$project_path",
+      "cmd": ["bash", "./build.sh", "--run", "--debug"],
+    },
+    {
+      "name": "Web Dev Run",
+      "working_dir": "$project_path/vue-project",
+      "cmd": ["npm", "run", "dev"],
+    },
+  ],
+}
