@@ -33,9 +33,8 @@ defineProps({
 			<div v-else><i>No description</i></div>
 		</p>
 		<div class="labels">
-			<div v-for="(ok, label) in labels">
-				<LabelIcon v-if="ok" class="label-item" :label="label" size="1rem"/>
-			</div>
+			<LabelIcon class="label-item" v-for="label in Object.entries(labels).filter(([k, ok])=>ok).map(([k, _])=>k).sort()"
+				:label="label" size="1rem"/>
 		</div>
 	</div>
 </template>

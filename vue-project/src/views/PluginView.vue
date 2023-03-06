@@ -49,8 +49,8 @@ onMounted(() => {
 				<div v-else><i>No description</i></div>
 			</p>
 			<ul class="labels">
-				<li v-for="(ok, label) in data.labels">
-					<LabelIcon v-if="ok" :label="label" size="1rem"/>
+				<li v-for="label in Object.entries(data.labels).filter(([k, ok])=>ok).map(([k, _])=>k).sort()">
+					<LabelIcon :label="label" size="1rem"/>
 				</li>
 			</ul>
 			<ul>

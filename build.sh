@@ -20,7 +20,7 @@ function build_web(){
 }
 
 function build_app(){
-	go build . -o ./output/plugin_web_point
+	CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build -o ./output/plugin_web_point .
 	return $?
 }
 
