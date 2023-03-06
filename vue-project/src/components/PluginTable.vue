@@ -34,11 +34,11 @@ const { data, loading: searching, run: refreshPluginList } = useRequest((event) 
 	if(event && event.type === 'input'){
 		textFilter.value = event.target.value
 	}
-	errorText.value = null;
+	errorText.value = null
 	return axios.get('/dev/plugin/list', {
 		params: {
 			filterBy: textFilter.value,
-			tags: tagFilters.value,
+			tags: tagFilters.value.join(','),
 			sortBy: sortBy.value,
 			reversed: reverseSort.value,
 		}
@@ -162,7 +162,6 @@ onUnmounted(() => {
 					<option value="name">Name</option>
 					<option value="id">ID</option>
 					<option value="authors">Authors</option>
-					<option value="labels">Labels</option>
 				</select>
 			</div>
 			<!-- TODO: split pages -->

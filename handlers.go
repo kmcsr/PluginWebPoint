@@ -10,9 +10,9 @@ import (
 )
 
 func devPluginList(ctx iris.Context){
+	loger.Debugf("URL params: %v", ctx.URLParams())
 	filterBy := ctx.URLParamTrim("filterBy")
 	tags0 := ctx.URLParamTrim("tags")
-	loger.Debug(tags0)
 	var tags []string
 	if len(tags0) > 0 {
 		tags = strings.Split(tags0, ",")

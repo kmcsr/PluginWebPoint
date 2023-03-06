@@ -12,24 +12,30 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+type PluginLabels struct {
+	Information bool `json:"information"`
+	Tool        bool `json:"tool"`
+	Management  bool `json:"management"`
+	API         bool `json:"api"`
+}
 
-type PluginMeta struct{
+type PluginMeta struct {
 	Id      string       `json:"id"`
 	Name    string       `json:"name"`
 	Version string       `json:"version"`
 	Authors []string     `json:"authors"`
 	Desc    string       `json:"desc"`
 	LastUpdate time.Time `json:"lastUpdate"`
-	Labels  []string     `json:"labels"`
+	Labels  PluginLabels `json:"labels"`
 }
 
-type API interface{
+type API interface {
 	GetPluginList(filterBy string, tags []string, sortBy string, reversed bool)(metas []*PluginMeta, err error)
 }
 
 var APIIns API = NewMySqlAPI()
 
-type MySqlAPI struct{
+type MySqlAPI struct {
 	DB *sql.DB
 }
 
@@ -60,7 +66,8 @@ func NewMySqlAPI()(api *MySqlAPI){
 }
 
 func (api *MySqlAPI)GetPluginList(filterBy string, tags []string, sortBy string, reversed bool)(metas []*PluginMeta, err error){
-	cmd := "SELECT `id`,`name`,`version`,`authors`,`desc`,`lastUpdate`,`labels` FROM plugins WHERE `enabled`=TRUE"
+	cmd := "SELECT `id`,`name`,`version`,`authors`,`desc`,`lastUpdate`," + 
+		"`label_information`,`label_tool`,`label_management`,`label_api` FROM plugins WHERE `enabled`=TRUE"
 	args := []any{}
 	if len(filterBy) > 0 {
 		cmd0, args0 := parseFilterBy(filterBy)
@@ -70,23 +77,22 @@ func (api *MySqlAPI)GetPluginList(filterBy string, tags []string, sortBy string,
 		}
 	}
 	if len(tags) > 0 {
-		cmd += " AND (`id` in ("
-		for i, t := range tags {
-			if i != 0 {
-				cmd += ","
-			}
+		cmds := []string{}
+		for _, t := range tags {
 			switch t {
 			case "management", "tool", "information", "api":
-				cmd += "'" + t + "'"
+				cmds = append(cmds, "`label_" + t + "`=TRUE")
 			default:
 				return nil, fmt.Errorf("Unexpect param tags=%q", t)
 			}
 		}
-		cmd += "))"
+		if len(cmds) > 0 {
+			cmd += " AND (" + strings.Join(cmds, " OR ") + ")"
+		}
 	}
 	switch sortBy {
 	case "":
-	case "id", "name", "authors", "lastUpdate", "labels":
+	case "id", "name", "authors", "lastUpdate":
 		cmd += " ORDER BY `" + sortBy + "`"
 		if reversed {
 			cmd += " DESC"
@@ -99,24 +105,27 @@ func (api *MySqlAPI)GetPluginList(filterBy string, tags []string, sortBy string,
 	defer cancel()
 
 	var rows *sql.Rows
+	loger.Debugf("exec sql: %q", cmd)
+	loger.Debugf("  args: %v", args)
 	if rows, err = api.DB.QueryContext(ctx, cmd, args...); err != nil {
+		loger.Debugf("sql error:", err)
 		return
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var (
 			meta PluginMeta
-			authors, labels string
+			authors string
 			lastUpdate sql.NullTime
 		)
-		if err = rows.Scan(&meta.Id, &meta.Name, &meta.Version, &authors, &meta.Desc, &lastUpdate, &labels); err != nil {
+		if err = rows.Scan(&meta.Id, &meta.Name, &meta.Version, &authors, &meta.Desc, &lastUpdate,
+			&meta.Labels.Information, &meta.Labels.Tool, &meta.Labels.Management, &meta.Labels.API); err != nil {
 			return
 		}
 		if lastUpdate.Valid {
 			meta.LastUpdate = lastUpdate.Time
 		}
 		meta.Authors = strings.Split(authors, ",")
-		meta.Labels = strings.Split(labels, ",")
 		metas = append(metas, &meta)
 	}
 	if err = rows.Err(); err != nil {

@@ -40,8 +40,10 @@ const icons = {
 			<div v-else><i>No description</i></div>
 		</p>
 		<div class="labels">
-			<div v-for="label in labels">
-				<component :is="icons[label]" class="flex-box" size="1rem"/> {{label}}
+			<div v-for="(ok, label) in labels">
+				<div v-if="ok" class="label-item">
+					<component :is="icons[label]" class="flex-box" size="1rem"/> {{label}}
+				</div>
 			</div>
 		</div>
 	</div>
@@ -99,7 +101,7 @@ const icons = {
 	bottom: 0.5rem;
 }
 
-.labels>div {
+.label-item {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
@@ -108,7 +110,7 @@ const icons = {
 	border-left: 0.08rem solid #999;
 }
 
-.labels>div:first-child {
+.label-item:first-child {
 	margin-left: 0;
 	padding-left: 0;
 	border-left: none;
