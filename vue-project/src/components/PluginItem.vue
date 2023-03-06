@@ -1,9 +1,7 @@
 <script setup>
 import { defineProps } from 'vue'
-import Information from 'vue-material-design-icons/Information.vue'
-import ToolBox from 'vue-material-design-icons/ToolBox.vue'
-import Controller from 'vue-material-design-icons/Controller.vue'
-import ApiSvg from 'vue-material-design-icons/CloudPlus.vue'
+import { RouterLink } from 'vue-router'
+import LabelIcon from './LabelIcon.vue'
 
 defineProps({
 	'id': String,
@@ -13,20 +11,15 @@ defineProps({
 	'labels': Array,
 })
 
-const icons = {
-	'information': Information,
-	'tool': ToolBox,
-	'management': Controller,
-	'api': ApiSvg,
-}
-
 </script>
 
 <template>
 	<div class="plugin-item">
 		<div class="name">
-			{{name}}
-			<span class="id">({{id}})</span>
+			<RouterLink :to="'/plugin/' + id">
+				{{name}}
+				<span class="id">({{id}})</span>
+			</RouterLink>
 		</div>
 		<div class="authors">
 			by
@@ -41,9 +34,7 @@ const icons = {
 		</p>
 		<div class="labels">
 			<div v-for="(ok, label) in labels">
-				<div v-if="ok" class="label-item">
-					<component :is="icons[label]" class="flex-box" size="1rem"/> {{label}}
-				</div>
+				<LabelIcon v-if="ok" class="label-item" :label="label" size="1rem"/>
 			</div>
 		</div>
 	</div>
@@ -102,9 +93,6 @@ const icons = {
 }
 
 .label-item {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
 	margin-left: 0.2rem;
 	padding-left: 0.2rem;
 	border-left: 0.08rem solid #999;

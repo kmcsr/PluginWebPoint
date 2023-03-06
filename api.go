@@ -13,24 +13,28 @@ import (
 )
 
 type PluginLabels struct {
-	Information bool `json:"information"`
-	Tool        bool `json:"tool"`
-	Management  bool `json:"management"`
-	API         bool `json:"api"`
+	Information bool `json:"information,omitempty"`
+	Tool        bool `json:"tool,omitempty"`
+	Management  bool `json:"management,omitempty"`
+	API         bool `json:"api,omitempty"`
 }
 
-type PluginMeta struct {
-	Id      string       `json:"id"`
-	Name    string       `json:"name"`
-	Version string       `json:"version"`
-	Authors []string     `json:"authors"`
-	Desc    string       `json:"desc"`
-	LastUpdate time.Time `json:"lastUpdate"`
-	Labels  PluginLabels `json:"labels"`
+type PluginInfo struct {
+	Id         string       `json:"id"`
+	Name       string       `json:"name"`
+	Version    string       `json:"version"`
+	Authors    []string     `json:"authors"`
+	Desc       string       `json:"desc,omitempty"`
+	Desc_zhCN  string       `json:"desc_zhcn,omitempty"`
+	LastUpdate *time.Time   `json:"lastUpdate,omitempty"`
+	Repo       string       `json:"repo,omitempty"`
+	Link       string       `json:"link,omitempty"`
+	Labels     PluginLabels `json:"labels"`
 }
 
 type API interface {
-	GetPluginList(filterBy string, tags []string, sortBy string, reversed bool)(metas []*PluginMeta, err error)
+	GetPluginList(filterBy string, tags []string, sortBy string, reversed bool)(infos []*PluginInfo, err error)
+	GetPluginInfo(id string)(info *PluginInfo, err error)
 }
 
 var APIIns API = NewMySqlAPI()
@@ -65,9 +69,11 @@ func NewMySqlAPI()(api *MySqlAPI){
 	return
 }
 
-func (api *MySqlAPI)GetPluginList(filterBy string, tags []string, sortBy string, reversed bool)(metas []*PluginMeta, err error){
-	cmd := "SELECT `id`,`name`,`version`,`authors`,`desc`,`lastUpdate`," + 
-		"`label_information`,`label_tool`,`label_management`,`label_api` FROM plugins WHERE `enabled`=TRUE"
+// TODO split pages
+func (api *MySqlAPI)GetPluginList(filterBy string, tags []string, sortBy string, reversed bool)(infos []*PluginInfo, err error){
+	cmd := "SELECT `id`,`name`,`version`,`authors`,`desc`,`lastUpdate`," +
+		"`label_information`,`label_tool`,`label_management`,`label_api`" +
+		" FROM plugins WHERE `enabled`=TRUE"
 	args := []any{}
 	if len(filterBy) > 0 {
 		cmd0, args0 := parseFilterBy(filterBy)
@@ -114,23 +120,49 @@ func (api *MySqlAPI)GetPluginList(filterBy string, tags []string, sortBy string,
 	defer rows.Close()
 	for rows.Next() {
 		var (
-			meta PluginMeta
+			info PluginInfo
 			authors string
 			lastUpdate sql.NullTime
 		)
-		if err = rows.Scan(&meta.Id, &meta.Name, &meta.Version, &authors, &meta.Desc, &lastUpdate,
-			&meta.Labels.Information, &meta.Labels.Tool, &meta.Labels.Management, &meta.Labels.API); err != nil {
+		if err = rows.Scan(&info.Id, &info.Name, &info.Version, &authors, &info.Desc, &lastUpdate,
+			&info.Labels.Information, &info.Labels.Tool, &info.Labels.Management, &info.Labels.API); err != nil {
 			return
 		}
 		if lastUpdate.Valid {
-			meta.LastUpdate = lastUpdate.Time
+			info.LastUpdate = &lastUpdate.Time
 		}
-		meta.Authors = strings.Split(authors, ",")
-		metas = append(metas, &meta)
+		info.Authors = strings.Split(authors, ",")
+		infos = append(infos, &info)
 	}
 	if err = rows.Err(); err != nil {
 		return
 	}
+	return
+}
+
+func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
+	const queryCmd = "SELECT `name`,`version`,`authors`,`desc`,`desc_zhCN`,`lastUpdate`," +
+		"`repo`,`link`,`label_information`,`label_tool`,`label_management`,`label_api`" +
+		" FROM plugins WHERE `id`=? AND `enabled`=TRUE"
+	var (
+		authors string
+		lastUpdate sql.NullTime
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
+	defer cancel()
+
+	info = new(PluginInfo)
+	if err = api.DB.QueryRowContext(ctx, queryCmd, id).
+		Scan(&info.Name, &info.Version, &authors, &info.Desc, &info.Desc_zhCN, &lastUpdate,
+		&info.Repo, &info.Link,
+		&info.Labels.Information, &info.Labels.Tool, &info.Labels.Management, &info.Labels.API); err != nil {
+		return
+	}
+	if lastUpdate.Valid {
+		info.LastUpdate = &lastUpdate.Time
+	}
+	info.Authors = strings.Split(authors, ",")
 	return
 }
 

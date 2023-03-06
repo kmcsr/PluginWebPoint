@@ -3,10 +3,15 @@ package main
 
 import (
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/kataras/iris/v12"
+)
+
+var (
+	PluginIdRe = regexp.MustCompile("[0-9a-z_]{1,64}")
 )
 
 func devPluginList(ctx iris.Context){
@@ -34,9 +39,27 @@ func devPluginList(ctx iris.Context){
 	})
 }
 
+func devPluginInfo(ctx iris.Context){
+	id := ctx.Params().GetString("id")
+	info, err := APIIns.GetPluginInfo(id)
+	if err != nil {
+		ctx.StopWithJSON(iris.StatusInternalServerError, iris.Map{
+			"status": "error",
+			"error": "apiError",
+			"message": err.Error(),
+		})
+		return
+	}
+	ctx.JSON(iris.Map{
+		"status": "ok",
+		"data": info,
+	})
+}
+
 func GetDevAPIHandler()(http.Handler){
 	app := iris.New()
 	app.SetName("dev-api")
+	app.Macros().Get("string").RegisterFunc("pid", PluginIdRe.MatchString)
 
 	app.Get("/", func(ctx iris.Context){
 		ctx.JSON(iris.Map{
@@ -47,6 +70,9 @@ func GetDevAPIHandler()(http.Handler){
 
 	app.PartyFunc("/plugin", func(p iris.Party){
 		p.Get("/list", devPluginList)
+		p.PartyFunc("/{id:string pid()}", func(p iris.Party){
+			p.Get("/info", devPluginInfo)
+		})
 	})
 
 
