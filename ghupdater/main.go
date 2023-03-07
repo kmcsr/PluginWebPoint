@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -26,6 +27,10 @@ var loger logger.Logger = logrus.Logger
 
 var DB *sql.DB = initDB()
 
+const (
+	maxConn = 16
+)
+
 func initDB()(DB *sql.DB){
 	username := os.Getenv("DB_USER")
 	passwd := os.Getenv("DB_PASSWD")
@@ -39,8 +44,8 @@ func initDB()(DB *sql.DB){
 		loger.Fatalf("Cannot connect to database: %v", err)
 	}
 	DB.SetConnMaxLifetime(time.Minute * 3)
-	DB.SetMaxOpenConns(16)
-	DB.SetMaxIdleConns(16)
+	DB.SetMaxOpenConns(maxConn)
+	DB.SetMaxIdleConns(maxConn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 3)
 	defer cancel()
@@ -51,8 +56,30 @@ func initDB()(DB *sql.DB){
 }
 
 var (
+	dbConnLock sync.Mutex
+	dbConnCond = sync.NewCond(&dbConnLock)
+	dbConnCount int
+)
+
+func getDBConn(){
+	dbConnLock.Lock()
+	defer dbConnLock.Unlock()
+	for dbConnCount >= maxConn {
+		dbConnCond.Wait()
+	}
+	dbConnCount++
+}
+
+func releaseDBConn(){
+	dbConnLock.Lock()
+	defer dbConnLock.Unlock()
+	dbConnCount--
+	dbConnCond.Broadcast()
+}
+
+var (
 	target string = "https://github.com/MCDReforged/PluginCatalogue"
-	targetRaw string = "raw.githubusercontent.com/MCDReforged/PluginCatalogue/" // meta/{{plugin_id}}/meta.json
+	targetRaw string = "https://raw.githubusercontent.com/MCDReforged/PluginCatalogue/" // meta/{{plugin_id}}/meta.json
 )
 
 type Author struct{
@@ -150,7 +177,10 @@ type PluginRelease struct{
 }
 
 func GetPluginMetaJson(id string)(meta PluginMeta, err error){
-	p := "https://" + path.Join(targetRaw, "meta", id, "meta.json")
+	p, err := url.JoinPath(targetRaw, "meta", id, "meta.json")
+	if err != nil {
+		return
+	}
 	loger.Infof("Getting %q", p)
 	resp, err := http.DefaultClient.Get(p)
 	if err != nil {
@@ -168,7 +198,10 @@ func GetPluginMetaJson(id string)(meta PluginMeta, err error){
 }
 
 func GetPluginReleaseJson(id string)(meta PluginRelease, err error){
-	p := "https://" + path.Join(targetRaw, "meta", id, "release.json")
+	p, err := url.JoinPath(targetRaw, "meta", id, "release.json")
+	if err != nil {
+		return
+	}
 	loger.Infof("Getting %q", p)
 	resp, err := http.DefaultClient.Get(p)
 	if err != nil {
@@ -214,12 +247,6 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 
 	now := time.Now()
 
-	tx, err := DB.Begin()
-	if err != nil {
-		loger.Errorf("Error when new Tx")
-		return
-	}
-	defer tx.Rollback()
 	sort.Strings(meta.Authors)
 	var (
 		desc string
@@ -235,7 +262,20 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 			desc_zhCN = d
 		}
 	}
-	link := path.Join(info.Repo, "tree", info.Branch, info.RelatedPath)
+	link, err := url.JoinPath(info.Repo, "tree", info.Branch, info.RelatedPath)
+	if err != nil {
+		return
+	}
+
+	getDBConn()
+	defer releaseDBConn()
+
+	tx, err := DB.Begin()
+	if err != nil {
+		loger.Errorf("Error when new Tx")
+		return
+	}
+	defer tx.Rollback()
 	var res sql.Result
 	loger.Infof("Updating database for %s", info.Id)
 	if res, err = tx.Exec(updateCmd, meta.Name, !info.Disable, meta.Version,
