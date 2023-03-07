@@ -2,15 +2,29 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
+
+var (
+	BASE_DIR string = "/opt/pwebpoint"
+	CACHE_DIR string = filepath.Join(BASE_DIR, "caches")
+	PLUGIN_CACHE_DIR string = filepath.Join(CACHE_DIR, "plugin")
+)
+
+var httpClient = &http.Client{
+	Timeout: time.Second * 5,
+}
 
 type PluginLabels struct {
 	Information bool `json:"information,omitempty"`
@@ -26,15 +40,39 @@ type PluginInfo struct {
 	Authors    []string     `json:"authors"`
 	Desc       string       `json:"desc,omitempty"`
 	Desc_zhCN  string       `json:"desc_zhcn,omitempty"`
-	LastUpdate *time.Time   `json:"lastUpdate,omitempty"`
+	CreateAt   time.Time    `json:"createAt"`
+	LastUpdate time.Time    `json:"lastUpdate"`
 	Repo       string       `json:"repo,omitempty"`
 	Link       string       `json:"link,omitempty"`
 	Labels     PluginLabels `json:"labels"`
+	Downloads  int64        `json:"downloads"`
+}
+
+type PluginRelease struct {
+	Id        string    `json:"id"`
+	Tag       string    `json:"tag"`
+	Enabled   bool      `json:"enabled"`
+	Stable    bool      `json:"stable"`
+	Size      int64     `json:"size"`
+	Uploaded  time.Time `json:"uploaded"`
+	FileName  string    `json:"filename"`
+	Downloads int       `json:"downloads"`
+	GithubUrl string    `json:"github_url"`
+}
+
+type PluginListOpt struct{
+	FilterBy string
+	Tags     []string
+	SortBy   string
+	Reversed bool
 }
 
 type API interface {
-	GetPluginList(filterBy string, tags []string, sortBy string, reversed bool)(infos []*PluginInfo, err error)
+	GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err error)
 	GetPluginInfo(id string)(info *PluginInfo, err error)
+	GetPluginReleases(id string)(releases []*PluginRelease, err error)
+	GetPluginRelease(id string, tag string)(release *PluginRelease, err error)
+	GetPluginReleaseAsset(id string, tag string, filename string)(rc io.ReadSeekCloser, modTime time.Time, err error)
 }
 
 var APIIns API = NewMySqlAPI()
@@ -54,7 +92,7 @@ func NewMySqlAPI()(api *MySqlAPI){
 
 	loger.Debug("Connecting to db %s@%s/%s", username, address, database)
 
-	if api.DB, err = sql.Open("mysql", fmt.Sprintf("%s:%s@%s/%s", username, passwd, address, database)); err != nil {
+	if api.DB, err = sql.Open("mysql", fmt.Sprintf("%s:%s@%s/%s?parseTime=true", username, passwd, address, database)); err != nil {
 		loger.Fatalf("Cannot connect to database: %v", err)
 	}
 	api.DB.SetConnMaxLifetime(time.Minute * 3)
@@ -70,21 +108,24 @@ func NewMySqlAPI()(api *MySqlAPI){
 }
 
 // TODO split pages
-func (api *MySqlAPI)GetPluginList(filterBy string, tags []string, sortBy string, reversed bool)(infos []*PluginInfo, err error){
-	cmd := "SELECT `id`,`name`,`version`,`authors`,`desc`,`lastUpdate`," +
+func (api *MySqlAPI)GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err error){
+	cmd := "SELECT `id`,`name`,`version`,`authors`,`desc`," +
+		"CONVERT_TZ(`createAt`,@@session.time_zone,'+00:00') AS `utc_createAt`," +
+		"CONVERT_TZ(`lastUpdate`,@@session.time_zone,'+00:00') AS `utc_lastUpdate`," +
 		"`label_information`,`label_tool`,`label_management`,`label_api`" +
 		" FROM plugins WHERE `enabled`=TRUE"
+	const queryDownloadCmd = "SELECT SUM(`downloads`),`id` FROM plugin_releases GROUP BY `id`"
 	args := []any{}
-	if len(filterBy) > 0 {
-		cmd0, args0 := parseFilterBy(filterBy)
+	if len(opt.FilterBy) > 0 {
+		cmd0, args0 := parseFilterBy(opt.FilterBy)
 		if len(cmd0) > 0 {
 			cmd += " AND (" + cmd0 + ")"
 			args = append(args, args0...)
 		}
 	}
-	if len(tags) > 0 {
+	if len(opt.Tags) > 0 {
 		cmds := []string{}
-		for _, t := range tags {
+		for _, t := range opt.Tags {
 			switch t {
 			case "management", "tool", "information", "api":
 				cmds = append(cmds, "`label_" + t + "`=TRUE")
@@ -96,25 +137,27 @@ func (api *MySqlAPI)GetPluginList(filterBy string, tags []string, sortBy string,
 			cmd += " AND (" + strings.Join(cmds, " OR ") + ")"
 		}
 	}
-	switch sortBy {
+	switch opt.SortBy {
 	case "":
 	case "id", "name", "authors", "lastUpdate":
-		cmd += " ORDER BY `" + sortBy + "`"
-		if reversed {
+		cmd += " ORDER BY `" + opt.SortBy + "`"
+		if opt.Reversed {
 			cmd += " DESC"
 		}
 	default:
-		return nil, fmt.Errorf("Unexpect param sortBy=%q", sortBy)
+		return nil, fmt.Errorf("Unexpect param sortBy=%q", opt.SortBy)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
 	defer cancel()
 
+	infomap := make(map[string]*PluginInfo)
+
 	var rows *sql.Rows
 	loger.Debugf("exec sql: %q", cmd)
 	loger.Debugf("  args: %v", args)
 	if rows, err = api.DB.QueryContext(ctx, cmd, args...); err != nil {
-		loger.Debugf("sql error:", err)
+		loger.Debugf("sql error: %v", err)
 		return
 	}
 	defer rows.Close()
@@ -122,17 +165,36 @@ func (api *MySqlAPI)GetPluginList(filterBy string, tags []string, sortBy string,
 		var (
 			info PluginInfo
 			authors string
-			lastUpdate sql.NullTime
 		)
-		if err = rows.Scan(&info.Id, &info.Name, &info.Version, &authors, &info.Desc, &lastUpdate,
+		if err = rows.Scan(&info.Id, &info.Name, &info.Version, &authors, &info.Desc, &info.CreateAt, &info.LastUpdate,
 			&info.Labels.Information, &info.Labels.Tool, &info.Labels.Management, &info.Labels.API); err != nil {
 			return
 		}
-		if lastUpdate.Valid {
-			info.LastUpdate = &lastUpdate.Time
-		}
 		info.Authors = strings.Split(authors, ",")
+		infomap[info.Id] = &info
 		infos = append(infos, &info)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+	rows.Close()
+	if rows, err = api.DB.QueryContext(ctx, queryDownloadCmd); err != nil {
+		return
+	}
+	defer rows.Close()
+	var (
+		downloads sql.NullInt64
+		pid string
+	)
+	for rows.Next() {
+		if err = rows.Scan(&downloads, &pid); err != nil {
+			return
+		}
+		if downloads.Valid {
+			if info, ok := infomap[pid]; ok {
+				info.Downloads = downloads.Int64
+			}
+		}
 	}
 	if err = rows.Err(); err != nil {
 		return
@@ -141,12 +203,14 @@ func (api *MySqlAPI)GetPluginList(filterBy string, tags []string, sortBy string,
 }
 
 func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
-	const queryCmd = "SELECT `name`,`version`,`authors`,`desc`,`desc_zhCN`,`lastUpdate`," +
+	const queryCmd = "SELECT `name`,`version`,`authors`,`desc`,`desc_zhCN`," +
+		"CONVERT_TZ(`createAt`,@@session.time_zone,'+00:00') AS `utc_createAt`," +
+		"CONVERT_TZ(`lastUpdate`,@@session.time_zone,'+00:00') AS `utc_lastUpdate`," +
 		"`repo`,`link`,`label_information`,`label_tool`,`label_management`,`label_api`" +
 		" FROM plugins WHERE `id`=? AND `enabled`=TRUE"
+	const queryDownloadCmd = "SELECT SUM(`downloads`) FROM plugin_releases WHERE `id`=?"
 	var (
 		authors string
-		lastUpdate sql.NullTime
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
@@ -154,15 +218,142 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 
 	info = new(PluginInfo)
 	if err = api.DB.QueryRowContext(ctx, queryCmd, id).
-		Scan(&info.Name, &info.Version, &authors, &info.Desc, &info.Desc_zhCN, &lastUpdate,
+		Scan(&info.Name, &info.Version, &authors, &info.Desc, &info.Desc_zhCN, &info.CreateAt, &info.LastUpdate,
 		&info.Repo, &info.Link,
 		&info.Labels.Information, &info.Labels.Tool, &info.Labels.Management, &info.Labels.API); err != nil {
 		return
 	}
-	if lastUpdate.Valid {
-		info.LastUpdate = &lastUpdate.Time
+	var downloads sql.NullInt64
+	if err = api.DB.QueryRowContext(ctx, queryDownloadCmd, id).Scan(&downloads); err != nil && err != sql.ErrNoRows {
+		return
+	}
+	info.Id = id
+	if downloads.Valid {
+		info.Downloads = downloads.Int64
 	}
 	info.Authors = strings.Split(authors, ",")
+	err = nil
+	return
+}
+
+func (api *MySqlAPI)GetPluginReleases(id string)(releases []*PluginRelease, err error){
+	const queryCmd = "SELECT `tag`,`enabled`,`stable`,`size`," +
+		"CONVERT_TZ(`uploaded`,@@session.time_zone,'+00:00') AS `utc_uploaded`," +
+		"`filename`,`downloads`,`github_url`" +
+		" FROM plugin_releases WHERE `id`=?"
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
+	defer cancel()
+
+	var rows *sql.Rows
+	if rows, err = api.DB.QueryContext(ctx, queryCmd, id); err != nil {
+		loger.Debugf("sql error: %v", err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			release PluginRelease
+			ghUrl sql.NullString
+		)
+		if err = rows.Scan(&release.Tag, &release.Enabled, &release.Stable, &release.Size,
+			&release.Uploaded, &release.FileName, &release.Downloads, &ghUrl); err != nil {
+			return
+		}
+		release.Id = id
+		if ghUrl.Valid {
+			release.GithubUrl = ghUrl.String
+		}
+		releases = append(releases, &release)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+	return
+}
+
+func (api *MySqlAPI)GetPluginRelease(id string, tag string)(release *PluginRelease, err error){
+	const queryCmd = "SELECT `enabled`,`stable`,`size`," +
+		"CONVERT_TZ(`uploaded`,@@session.time_zone,'+00:00') AS `utc_uploaded`," +
+		"`filename`,`downloads`,`github_url`" +
+		" FROM plugin_releases WHERE `id`=? AND `tag`=?"
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
+	defer cancel()
+
+	release = new(PluginRelease)
+	var (
+		downloads sql.NullInt64
+		ghUrl sql.NullString
+	)
+	if err = api.DB.QueryRowContext(ctx, queryCmd, id, tag).
+		Scan(&release.Enabled, &release.Stable, &release.Size, &release.Uploaded,
+			&release.FileName, &downloads, &ghUrl); err != nil {
+		return
+	}
+	release.Id = id
+	release.Tag = tag
+	if downloads.Valid {
+		release.Downloads = (int)(downloads.Int64)
+	}
+	if ghUrl.Valid {
+		release.GithubUrl = ghUrl.String
+	}
+	return
+}
+
+type StatusCodeErr struct{
+	Code int
+}
+
+func (e *StatusCodeErr)Error()(string){
+	return fmt.Sprintf("Unexpect http status code %d (%s)", e.Code, http.StatusText(e.Code))
+}
+
+type NopReadSeeker struct{
+	io.ReadSeeker
+}
+
+func (NopReadSeeker)Close()(error){ return nil }
+
+func (api *MySqlAPI)GetPluginReleaseAsset(id string, tag string, filename string)(rc io.ReadSeekCloser, modTime time.Time, err error){
+	cache := filepath.Join(PLUGIN_CACHE_DIR, filepath.Clean(filepath.Join(id, tag, filename)))
+	var fd *os.File
+	if fd, err = os.Open(cache); err == nil {
+		if stat, err := fd.Stat(); err == nil {
+			modTime = stat.ModTime()
+		}
+		rc = fd
+		return
+	}
+	var release *PluginRelease
+	if release, err = api.GetPluginRelease(id, tag); err != nil {
+		return
+	}
+	var resp *http.Response
+	loger.Debugf("Downloading %q", release.GithubUrl)
+	if resp, err = httpClient.Get(release.GithubUrl); err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		err = &StatusCodeErr{resp.StatusCode}
+		return
+	}
+	var data []byte
+	if data, err = io.ReadAll(resp.Body); err != nil {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(cache), 0755); err == nil {
+		if err = os.WriteFile(cache, data, 0444); err != nil {
+			loger.Warnf("Cannot write cache file %q: %v", cache, err)
+		}else{
+			loger.Infof("Cache %s(v%s):%s at %q: %v", id, tag, filename, cache, err)
+		}
+	}else{
+		loger.Warnf("Cannot make cache dir %q: %v", filepath.Dir(cache), err)
+	}
+	rc = NopReadSeeker{bytes.NewReader(data)}
 	return
 }
 

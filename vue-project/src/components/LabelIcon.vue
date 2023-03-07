@@ -7,6 +7,7 @@ import ApiSvg from 'vue-material-design-icons/CloudPlus.vue'
 
 defineProps({
 	'label': String,
+	'text': String,
 	'fillColor': String,
 	'size': String,
 })
@@ -21,7 +22,7 @@ const icons = {
 
 <template>
 	<div class="label">
-		<component :is="icons[label]" class="flex-box" :fill="fillColor" :size="size"/> {{label}}
+		<component :is="icons[label]" class="label-icon" :fill="fillColor" :size="size"/> {{label || text}}
 	</div>
 </template>
 
@@ -31,6 +32,11 @@ const icons = {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
+}
+
+.label-icon {
+	display: flex;
+	margin-right: 0.3rem;
 }
 
 </style>

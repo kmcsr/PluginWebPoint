@@ -16,6 +16,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -130,6 +131,7 @@ func HandleConstData(data io.ReadSeeker, modTime time.Time, name string)(http.Ha
 type ConstFileServer struct{
 	root fs.FS
 	modTime time.Time
+	mux sync.RWMutex
 	etags map[string]string
 }
 
@@ -166,12 +168,16 @@ func (s *ConstFileServer)ServeHTTP(rw http.ResponseWriter, req *http.Request){
 		http.Error(rw, fmt.Sprintf("%d: %s", code, http.StatusText(code)), code)
 		return
 	}
+	s.mux.RLock()
 	etag, ok := s.etags[name]
+	s.mux.RUnlock()
 	if !ok {
 		h := sha256.New()
 		if _, err := io.Copy(h, fd); err == nil {
 			etag = fmt.Sprintf(`"sha256:%x"`, h.Sum(nil))
+			s.mux.Lock()
 			s.etags[name] = etag
+			s.mux.Unlock()
 		}else{
 			loger.Errorf("%s: Cannot calc etag: %v", req.URL.Path, err)
 		}

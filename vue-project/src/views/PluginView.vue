@@ -9,7 +9,7 @@ const props = defineProps({
 })
 
 const { data, run: freshData } = useRequest(() => {
-	return axios.get('/dev/plugin/' + props.plugin + '/info').then((res) => {
+	return Promise.all([axios.get(`/dev/plugin/${props.plugin}/info`).then((res) => {
 		if(res.data.status !== 'ok'){
 			let err = new Error('Response status is not ok')
 			err.response = res
@@ -18,8 +18,40 @@ const { data, run: freshData } = useRequest(() => {
 		return res.data.data
 	}).catch((res) => {
 		console.error('Error when fetching plugin data:', res)
+	}), axios.get(`/dev/plugin/${props.plugin}/releases`).then((res) => {
+		if(res.data.status !== 'ok'){
+			let err = new Error('Response status is not ok')
+			err.response = res
+			throw err
+		}
+		return res.data.data
+	})]).then((res) => {
+		console.debug('res:', res)
+		res[0].releases = res[1]
+		return res[0]
 	})
 })
+
+function fmtSize(size){
+	let unit = 'B'
+	if(size > 1024){
+		size /= 1024
+		unit = 'KB'
+	}
+	if(size > 1024){
+		size /= 1024
+		unit = 'MB'
+	}
+	if(size > 1024){
+		size /= 1024
+		unit = 'GB'
+	}
+	if(size > 1024){
+		size /= 1024
+		unit = 'TB'
+	}
+	return (+size.toFixed(2)) + unit
+}
 
 onMounted(() => {
 	freshData()
@@ -29,38 +61,65 @@ onMounted(() => {
 
 <template>
 	<main>
+		<RouterLink to="/">Back to Index</RouterLink>
 		<div v-if="data">
-			<h2>{{data.name}}</h2>
-			<span>{{data.id}}</span>
-			<div>v{{data.version}}</div>
-			<div>
-				Last Update:
-				<span v-if="data.lastUpdate">{{new Date(data.lastUpdate).toJSON()}}</span>
-				<span v-else><i>Unknown</i></span>
-			</div>
+			<header>
+				<h2 class="plugin-name">{{data.name}} <span>{{data.id}}</span></h2>
+				<div class="plugin-version">v{{data.version}}</div>
+				<div>
+					Last Update:
+					<span v-if="data.lastUpdate">{{new Date(data.lastUpdate).toJSON()}}</span>
+					<span v-else><i>Unknown</i></span>
+				</div>
+			</header>
+			<h3>Total Download: {{data.downloads}}</h3>
 			<h3>Authors:</h3>
 			<ul>
 				<li v-for="author in data.authors">
 					{{author}}
 				</li>
 			</ul>
-			<p class="description">
-				<div v-if="data.desc">{{data.desc}}</div>
-				<div v-else><i>No description</i></div>
-			</p>
+			<h3>Labels:</h3>
 			<ul class="labels">
 				<li v-for="label in Object.entries(data.labels).filter(([k, ok])=>ok).map(([k, _])=>k).sort()">
 					<LabelIcon :label="label" size="1rem"/>
 				</li>
 			</ul>
+			<h3>Links:</h3>
 			<ul>
 				<li>
-					<a :href="data.repo">Repo</a>
+					<a :href="data.repo">Repo: {{data.repo}}</a>
 				</li>
 				<li>
-					<a :href="data.link">Link</a>
+					<a :href="data.link">Link: {{data.link}}</a>
 				</li>
 			</ul>
+			<p class="description">
+				<pre>
+					<div v-if="data.desc">{{data.desc}}</div>
+					<div v-else><i>No description</i></div>
+				</pre>
+			</p>
+			<h3>Releases:</h3>
+			<table v-if="data.releases" style="border-collapse:collapse;">
+				<thead>
+					<th style="border: 1px solid #000;padding: 0.5rem;">File</th>
+					<th style="border: 1px solid #000;padding: 0.5rem;">Size</th>
+					<th style="border: 1px solid #000;padding: 0.5rem;">Downloads</th>
+				</thead>
+				<tbody>
+					<tr v-for="r in data.releases.reverse()">
+						<td style="border: 1px solid #000;padding: 0.5rem;">
+							<a :href="`/download/${r.id}/${r.tag}/${r.filename}`">
+								{{r.filename}}
+							</a>
+						</td>
+						<td style="border: 1px solid #000;padding: 0.5rem;">{{fmtSize(r.size)}}</td>
+						<td style="border: 1px solid #000;padding: 0.5rem;">{{r.downloads}}</td>
+					</tr>
+				</tbody>
+			</table>
+			<div v-else><i>No release</i></div>
 		</div>
 		<div v-else>
 			Loading...
@@ -69,5 +128,22 @@ onMounted(() => {
 </template>
 
 <style scoped>
+
+.plugin-name {
+/*	*/
+}
+
+.plugin-name>span {
+	font-size: 1rem;
+	font-weight: 100;
+}
+
+.plugin-version {
+	margin-left: 1rem;
+}
+
+.description {
+	margin: 0.2rem;
+}
 
 </style>

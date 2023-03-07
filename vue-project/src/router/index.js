@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import IndexView from '../views/IndexView.vue'
 import PluginView from '../views/PluginView.vue'
+import DownloadView from '../views/DownloadView.vue'
 
 const router = createRouter({
 	history: createWebHistory(import.meta.env.BASE_URL),
@@ -23,6 +24,12 @@ const router = createRouter({
 			props: true,
 			name: 'plugin',
 			component: PluginView,
+		},
+		{
+			path: '/download/:plugin/:tag/:filename',
+			props: true,
+			name: 'download',
+			component: DownloadView,
 		}
 	]
 })

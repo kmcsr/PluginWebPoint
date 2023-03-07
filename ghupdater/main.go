@@ -122,6 +122,33 @@ type PluginMeta struct{
 	Desc any `json:"description"`
 }
 
+type Asset struct{
+	Name string `json:"name"`
+	Size int64 `json:"size"`
+	DownloadCount int64 `json:"download_count"`
+	CreateAt time.Time `json:"create_at"`
+	BrowserDownloadUrl string `json:"browser_download_url"`
+}
+
+type Release struct{
+	Url string `json:"url"`
+	Name string `json:"name"`
+	TagName string `json:"tag_name"`
+	CreateAt time.Time `json:"create_at"`
+	Assets []Asset `json:"assets"`
+	Description string `json:"description"`
+	Prerelease bool `json:"prerelease"`
+	ParsedVersion string `json:"parsed_version"`
+}
+
+type PluginRelease struct{
+	SchemaVersion int `json:"schema_version"`
+	Id string `json:"id"`
+	LatestVersion string `json:"latest_version"`
+	Releases []Release `json:"releases"`
+	ReleaseMeta map[string]PluginMeta `json:"release_meta"`
+}
+
 func GetPluginMetaJson(id string)(meta PluginMeta, err error){
 	p := "https://" + path.Join(targetRaw, "meta", id, "meta.json")
 	loger.Infof("Getting %q", p)
@@ -140,7 +167,29 @@ func GetPluginMetaJson(id string)(meta PluginMeta, err error){
 	return
 }
 
-func updateSql(info PluginInfo, meta PluginMeta)(err error){
+func GetPluginReleaseJson(id string)(meta PluginRelease, err error){
+	p := "https://" + path.Join(targetRaw, "meta", id, "release.json")
+	loger.Infof("Getting %q", p)
+	resp, err := http.DefaultClient.Get(p)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+	if err = json.Unmarshal(body, &meta); err != nil {
+		return
+	}
+	if meta.SchemaVersion != 4 {
+		err = fmt.Errorf("Unexpect schema version %d, expect 4", meta.SchemaVersion)
+		return
+	}
+	return
+}
+
+func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err error){
 	const updateCmd = "UPDATE plugins SET " +
 			"`name`=?," +
 			"`enabled`=?," +
@@ -159,11 +208,15 @@ func updateSql(info PluginInfo, meta PluginMeta)(err error){
 	const insertCmd = "INSERT INTO plugins (`id`,`name`,`enabled`,`version`,`authors`,`desc`,`desc_zhCN`,`repo`,`link`," +
 			"`label_information`,`label_tool`,`label_management`,`label_api`,`github_sync`,`last_sync`)" +
 			"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,TRUE,?)"
+	const insertReleaseCmd = "INSERT INTO plugin_releases (`id`,`tag`,`enabled`,`stable`,`size`,`filename`,`downloads`," +
+			"`github_url`)" +
+			"VALUES (?,?,TRUE,?,?,?,?,?)"
 
 	now := time.Now()
 
 	tx, err := DB.Begin()
 	if err != nil {
+		loger.Errorf("Error when new Tx")
 		return
 	}
 	defer tx.Rollback()
@@ -189,6 +242,7 @@ func updateSql(info PluginInfo, meta PluginMeta)(err error){
 		strings.Join(meta.Authors, ","), desc, desc_zhCN, info.Repo, link,
 		info.Labels.HasInformation(), info.Labels.HasTool(), info.Labels.HasManagement(), info.Labels.HasAPI(),
 		now, info.Id); err != nil {
+		loger.Errorf("Error when update meta")
 		return
 	}
 	var n int64
@@ -201,10 +255,20 @@ func updateSql(info PluginInfo, meta PluginMeta)(err error){
 			strings.Join(meta.Authors, ","), desc, desc_zhCN, info.Repo, link,
 			info.Labels.HasInformation(), info.Labels.HasTool(), info.Labels.HasManagement(), info.Labels.HasAPI(),
 			now); err != nil {
+			loger.Errorf("Error when insert meta into sql")
+			return
+		}
+	}
+	for _, release := range releases.Releases {
+		assets := release.Assets[0]
+		if _, err = tx.Exec(insertReleaseCmd, info.Id, release.ParsedVersion, release.Prerelease,
+			assets.Size, assets.Name, assets.DownloadCount, assets.BrowserDownloadUrl); err != nil {
+			loger.Errorf("Error when insert release into sql")
 			return
 		}
 	}
 	if err = tx.Commit(); err != nil {
+		loger.Errorf("Error when commit Tx")
 		return
 	}
 	return
@@ -256,7 +320,8 @@ func main(){
 					loger.Errorf("Cannot get meta json: %v", err)
 					return
 				}
-				if err = updateSql(info, meta); err != nil {
+				releases, err := GetPluginReleaseJson(info.Id)
+				if err = updateSql(info, meta, releases); err != nil {
 					loger.Errorf("Cannot update to database: %v", err)
 				}
 			}(info)

@@ -5,20 +5,9 @@ import TextSearch from 'vue-material-design-icons/TextSearch.vue'
 import Filter from 'vue-material-design-icons/Filter.vue'
 import SortAscending from 'vue-material-design-icons/SortAscending.vue'
 import SortDescending from 'vue-material-design-icons/SortDescending.vue'
-import Information from 'vue-material-design-icons/Information.vue'
-import ToolBox from 'vue-material-design-icons/ToolBox.vue'
-import Controller from 'vue-material-design-icons/Controller.vue'
-import ApiSvg from 'vue-material-design-icons/CloudPlus.vue'
-
-import PluginItem from './PluginItem.vue'
 import axios from 'axios'
-
-const icons = {
-	'information': Information,
-	'tools': ToolBox,
-	'management': Controller,
-	'api': ApiSvg,
-}
+import LabelIcon from './LabelIcon.vue'
+import PluginItem from './PluginItem.vue'
 
 const pluginList = ref(null)
 const pluginListHead = ref(null)
@@ -35,7 +24,7 @@ const { data, loading: searching, run: refreshPluginList } = useRequest((event) 
 		textFilter.value = event.target.value
 	}
 	errorText.value = null
-	return axios.get('/dev/plugin/list', {
+	return axios.get('/dev/plugins', {
 		params: {
 			filterBy: textFilter.value,
 			tags: tagFilters.value.join(','),
@@ -44,12 +33,12 @@ const { data, loading: searching, run: refreshPluginList } = useRequest((event) 
 		}
 	}).then((resp) => {
 		if(resp.data.status !== 'ok'){
-			console.error('response for /plugin/list:', resp)
+			console.error('response for /plugins:', resp)
 			return null
 		}
 		return resp.data.data
 	}).catch((error) => {
-		console.error('Error when getting plugin list:', error)
+		console.error('Error when getting plugins:', error)
 		if(error.response && error.response.data){
 			errorText.value = error.response.data.error + ': ' + error.response.data.message
 		}else{
@@ -102,29 +91,25 @@ onUnmounted(() => {
 					<div>
 						<input type="checkbox" id="plugin-filters-information" name="scales" value="information" v-model="tagFilters">
 						<label for="plugin-filters-information">
-							<Information class="flex-box" size="1rem"/>
-							Information
+							<LabelIcon label="information" text="Information" size="1rem"/>
 						</label>
 					</div>
 					<div>
 						<input type="checkbox" id="plugin-filters-tool" name="scales" value="tool" v-model="tagFilters">
 						<label for="plugin-filters-tool">
-							<ToolBox class="flex-box" size="1rem"/>
-							Tool
+							<LabelIcon label="tool" text="Tool" class="flex-box" size="1rem"/>
 						</label>
 					</div>
 					<div>
 						<input type="checkbox" id="plugin-filters-management" name="scales" value="management" v-model="tagFilters">
 						<label for="plugin-filters-management">
-							<Controller class="flex-box" size="1rem"/>
-							Management
+							<LabelIcon label="management" text="Management" class="flex-box" size="1rem"/>
 						</label>
 					</div>
 					<div>
 						<input type="checkbox" id="plugin-filters-api" name="scales" value="api" v-model="tagFilters">
 						<label for="plugin-filters-api">
-							<ApiSvg class="flex-box" size="1rem"/>
-							API
+							<LabelIcon label="api" text="API" class="flex-box" size="1rem"/>
 						</label>
 					</div>
 				</div>
@@ -132,9 +117,7 @@ onUnmounted(() => {
 					<b>Searching...</b>
 				</div>
 				<TransitionGroup v-else-if="list.length" class="plugin-list-body" name="plist" tag="div">
-					<div v-for="data in list" :key="data.id">
-						<PluginItem :id="data.id" :name="data.name" :authors="data.authors" :desc="data.desc" :labels="data.labels"/>
-					</div>
+					<PluginItem  v-for="data in list" :key="data.id" :data="data"/>
 				</TransitionGroup>
 				<div v-else-if="errorText" class="error-box">
 					{{errorText}}
@@ -175,7 +158,7 @@ onUnmounted(() => {
 	display: flex;
 	border-collapse: collapse;
 	flex-direction: column;
-	width: 60rem;
+	width: 53rem;
 	margin: 0.6rem;
 	padding: 0.4rem;
 	border-radius: 0.2rem;
@@ -193,7 +176,7 @@ onUnmounted(() => {
 	flex-direction: row;
 	align-items: center;
 	height: 3.5rem;
-	width: 59.2rem;
+	width: 51.2rem;
 	border-radius: 0.7rem;
 	box-shadow: #0007 0 0 0.1rem;
 	background-color: #fff;
