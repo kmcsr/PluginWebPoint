@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 	"github.com/kmcsr/go-logger"
 	"github.com/kmcsr/go-logger/logrus"
 )
@@ -242,7 +242,6 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 		strings.Join(meta.Authors, ","), desc, desc_zhCN, info.Repo, link,
 		info.Labels.HasInformation(), info.Labels.HasTool(), info.Labels.HasManagement(), info.Labels.HasAPI(),
 		now, info.Id); err != nil {
-		loger.Errorf("Error when update meta")
 		return
 	}
 	var n int64
@@ -255,7 +254,7 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 			strings.Join(meta.Authors, ","), desc, desc_zhCN, info.Repo, link,
 			info.Labels.HasInformation(), info.Labels.HasTool(), info.Labels.HasManagement(), info.Labels.HasAPI(),
 			now); err != nil {
-			loger.Errorf("Error when insert meta into sql")
+			// loger.Errorf("Error when insert meta into sql")
 			return
 		}
 	}
@@ -263,12 +262,16 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 		assets := release.Assets[0]
 		if _, err = tx.Exec(insertReleaseCmd, info.Id, release.ParsedVersion, release.Prerelease,
 			assets.Size, assets.Name, assets.DownloadCount, assets.BrowserDownloadUrl); err != nil {
-			loger.Errorf("Error when insert release into sql")
+			if e, ok := err.(*mysql.MySQLError); ok {
+				if e.Number == 1062 {
+					continue
+				}
+			}
+			// loger.Errorf("Error when insert release into sql")
 			return
 		}
 	}
 	if err = tx.Commit(); err != nil {
-		loger.Errorf("Error when commit Tx")
 		return
 	}
 	return

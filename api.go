@@ -90,7 +90,7 @@ func NewMySqlAPI()(api *MySqlAPI){
 	address := os.Getenv("DB_ADDR")
 	database := os.Getenv("DB_NAME")
 
-	loger.Debug("Connecting to db %s@%s/%s", username, address, database)
+	loger.Info("Connecting to db %s:*@%s/%s", username, address, database)
 
 	if api.DB, err = sql.Open("mysql", fmt.Sprintf("%s:%s@%s/%s?parseTime=true", username, passwd, address, database)); err != nil {
 		loger.Fatalf("Cannot connect to database: %v", err)

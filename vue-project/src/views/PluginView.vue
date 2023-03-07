@@ -62,29 +62,31 @@ onMounted(() => {
 <template>
 	<main>
 		<RouterLink to="/">Back to Index</RouterLink>
-		<div v-if="data">
-			<header>
-				<h2 class="plugin-name">{{data.name}} <span>{{data.id}}</span></h2>
-				<div class="plugin-version">v{{data.version}}</div>
-				<div>
-					Last Update:
-					<span v-if="data.lastUpdate">{{new Date(data.lastUpdate).toJSON()}}</span>
-					<span v-else><i>Unknown</i></span>
-				</div>
+		<div v-if="data" class="plugin-box">
+			<header class="plugin-head">
+				<h1 class="plugin-name">
+					{{data.name}}
+					<span class="plugin-version">v{{data.version}}</span>
+				</h1>
+				<h2 class="plugin-authors">
+					By
+					<span v-for="author in data.authors">
+						{{author}}
+					</span>
+				</h2>
 			</header>
-			<h3>Total Download: {{data.downloads}}</h3>
-			<h3>Authors:</h3>
-			<ul>
-				<li v-for="author in data.authors">
-					{{author}}
-				</li>
-			</ul>
-			<h3>Labels:</h3>
+			<div>
+				Last Update:
+				<span v-if="data.lastUpdate">{{new Date(data.lastUpdate).toJSON()}}</span>
+				<span v-else><i>Unknown</i></span>
+			</div>
+			<h2>Labels:</h2>
 			<ul class="labels">
 				<li v-for="label in Object.entries(data.labels).filter(([k, ok])=>ok).map(([k, _])=>k).sort()">
 					<LabelIcon :label="label" size="1rem"/>
 				</li>
 			</ul>
+			<h3>Total Download: {{data.downloads}}</h3>
 			<h3>Links:</h3>
 			<ul>
 				<li>
@@ -129,17 +131,32 @@ onMounted(() => {
 
 <style scoped>
 
+.plugin-box {
+	padding: 0.5rem;
+	border: var(--color-border) 1px solid;
+	border-radius: 1rem;
+	background-color: var(--color-background);
+}
+
 .plugin-name {
 /*	*/
 }
 
-.plugin-name>span {
+.plugin-version {
+	font-style: italic;
 	font-size: 1rem;
 	font-weight: 100;
 }
 
-.plugin-version {
-	margin-left: 1rem;
+.plugin-authors {
+	font-size: 1rem;
+	font-weight: 100;
+}
+
+.plugin-authors>span {
+	margin-right: 0.2rem;
+	font-size: 1.1rem;
+	font-weight: 150;
 }
 
 .description {

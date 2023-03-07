@@ -58,6 +58,11 @@ function sinceDate(date){
 				<div v-if="desc">{{data.desc}}</div>
 				<div v-else><i>No description</i></div>
 			</p>
+			<div class="labels">
+				<div class="label-item" v-for="label in Object.entries(data.labels).filter(([k, ok])=>ok).map(([k, _])=>k).sort()">
+					<LabelIcon :label="label" size="1rem"/>
+				</div>
+			</div>
 		</div>
 		<div class="plugin-extra">
 			<div>
@@ -68,11 +73,6 @@ function sinceDate(date){
 				<UpdateSvg class="flex-box" size="1.5rem" style="margin-right:0.2rem;"/>
 				Updated {{fmtTimestamp(sinceDate(data.lastUpdate), 1)}} ago
 			</div>
-		</div>
-		<div class="labels">
-			<LabelIcon class="label-item"
-				v-for="label in Object.entries(data.labels).filter(([k, ok])=>ok).map(([k, _])=>k).sort()"
-				:label="label" size="1rem"/>
 		</div>
 	</article>
 </template>
@@ -99,7 +99,7 @@ function sinceDate(date){
 .plugin-extra {
 	display: flex;
 	flex-direction: column;
-	align-items: right;
+	align-items: flex-end;
 	width: 23%;
 	margin-left: 1rem;
 }
@@ -146,23 +146,40 @@ function sinceDate(date){
 }
 
 .labels {
-	display: flex;
-	flex-direction: row;
-	position: absolute;
-	left: 0.6rem;
-	bottom: 0.5rem;
+	padding-left: 0.8rem;
+	width: 100%;
 }
 
 .label-item {
-	margin-left: 0.2rem;
-	padding-left: 0.2rem;
-	border-left: 0.08rem solid #999;
+	display: inline-block;
+	margin-right: 0.2rem;
+	padding-right: 0.2rem;
+	border-right: 0.08rem solid #999;
 }
 
-.label-item:first-child {
-	margin-left: 0;
-	padding-left: 0;
-	border-left: none;
+.label-item:last-child {
+	margin-right: 0;
+	padding-right: 0;
+	border-right: none;
+}
+
+@media (max-width: 54.2rem){
+	.plugin-item {
+		flex-direction: column;
+		min-height: 12rem;
+		height: auto;
+	}
+	.plugin-body {
+		width: 100%;
+	}
+	.plugin-extra {
+		align-items: flex-start;
+		width: 100%;
+		margin-left: 0;
+	}
+	.label-item {
+		border-right: none;
+	}
 }
 
 </style>
