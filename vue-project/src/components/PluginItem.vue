@@ -4,38 +4,11 @@ import { RouterLink } from 'vue-router'
 import BriefcaseDownload from 'vue-material-design-icons/BriefcaseDownload.vue'
 import UpdateSvg from 'vue-material-design-icons/Update.vue'
 import LabelIcon from './LabelIcon.vue'
+import { fmtTimestamp, sinceDate } from '../utils'
 
 defineProps({
 	'data': Object,
 })
-
-function fmtTimestamp(ts, n){
-	if(n === undefined){
-		n = 2;
-	}
-	let unit = 'ms'
-	if(ts > 1000){
-		ts /= 1000
-		unit = 's'
-	}
-	if(ts > 60){
-		ts /= 60
-		unit = 'min'
-	}
-	if(ts > 60){
-		ts /= 60
-		unit = 'h'
-	}
-	if(ts > 24){
-		ts /= 24
-		unit = 'd'
-	}
-	return (+ts.toFixed(n)) + unit
-}
-
-function sinceDate(date){
-	return new Date() - new Date(date)
-}
 
 </script>
 

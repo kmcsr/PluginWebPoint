@@ -74,6 +74,7 @@ body {
 
 .flex-box {
 	display: flex;
+	align-items: center;
 }
 
 .rotate-180 {

@@ -2,7 +2,13 @@
 import { defineProps, onMounted, ref } from 'vue'
 import { useRequest } from 'vue-request'
 import axios from 'axios'
+import UpdateSvg from 'vue-material-design-icons/Update.vue'
+import BriefcaseDownload from 'vue-material-design-icons/BriefcaseDownload.vue'
+import SyncSvg from 'vue-material-design-icons/Sync.vue'
+import Github from 'vue-material-design-icons/Github.vue'
+import LinkBox from 'vue-material-design-icons/LinkBox.vue'
 import LabelIcon from '../components/LabelIcon.vue'
+import { fmtSize, fmtTimestamp, sinceDate } from '../utils'
 
 const props = defineProps({
 	'plugin': String
@@ -25,33 +31,14 @@ const { data, run: freshData } = useRequest(() => {
 			throw err
 		}
 		return res.data.data
-	})]).then((res) => {
-		console.debug('res:', res)
-		res[0].releases = res[1]
-		return res[0]
+	})]).then(([res1, res2]) => {
+		if(!res1){
+			return null
+		}
+		res1.releases = res2
+		return res1
 	})
 })
-
-function fmtSize(size){
-	let unit = 'B'
-	if(size > 1024){
-		size /= 1024
-		unit = 'KB'
-	}
-	if(size > 1024){
-		size /= 1024
-		unit = 'MB'
-	}
-	if(size > 1024){
-		size /= 1024
-		unit = 'GB'
-	}
-	if(size > 1024){
-		size /= 1024
-		unit = 'TB'
-	}
-	return (+size.toFixed(2)) + unit
-}
 
 onMounted(() => {
 	freshData()
@@ -61,9 +48,9 @@ onMounted(() => {
 
 <template>
 	<main>
-		<RouterLink to="/">Back to Index</RouterLink>
 		<div v-if="data" class="plugin-box">
-			<header class="plugin-head">
+			<header class="plugin-header">
+				<RouterLink to="/">&lt;&lt;&nbsp;Back to Index</RouterLink>
 				<h1 class="plugin-name">
 					{{data.name}}
 					<span class="plugin-version">v{{data.version}}</span>
@@ -75,9 +62,18 @@ onMounted(() => {
 					</span>
 				</h2>
 			</header>
-			<div>
-				Last Update:
-				<span v-if="data.lastUpdate">{{new Date(data.lastUpdate).toJSON()}}</span>
+			<div class="flex-box">
+				<UpdateSvg class="flex-box" size="1.5rem" style="margin-right:0.2rem;"/>
+				Last Update:&nbsp;
+				<span v-if="data.lastUpdate">{{fmtTimestamp(sinceDate(data.lastUpdate), 1)}} ago</span>
+				<span v-else><i>Unknown</i></span>
+			</div>
+			<div v-if="data.github_sync" class="flex-box">
+				<SyncSvg class="flex-box" size="1.5rem" style="margin-right:0.2rem;"/>
+				Synced from
+				<Github class="flex-box" style="margin: 0 0.1rem;" size="1rem"/>
+				Github:&nbsp;
+				<span v-if="data.last_sync">{{fmtTimestamp(sinceDate(data.last_sync), 1)}} ago</span>
 				<span v-else><i>Unknown</i></span>
 			</div>
 			<h2>Labels:</h2>
@@ -86,23 +82,33 @@ onMounted(() => {
 					<LabelIcon :label="label" size="1rem"/>
 				</li>
 			</ul>
-			<h3>Total Download: {{data.downloads}}</h3>
-			<h3>Links:</h3>
+			<h3>
+				<div class="flex-box">
+					<BriefcaseDownload class="flex-box" size="1.5rem"/>
+					Total Download: {{data.downloads}}
+				</div>
+			</h3>
+			<h3>
+				<div class="flex-box">
+					<LinkBox class="flex-box" size="1.5rem"/>
+					Links:
+				</div>
+			</h3>
 			<ul>
 				<li>
-					<a :href="data.repo">Repo: {{data.repo}}</a>
+					<a :href="data.repo">Repo</a>
 				</li>
 				<li>
-					<a :href="data.link">Link: {{data.link}}</a>
+					<a :href="data.link">Main page</a>
 				</li>
 			</ul>
 			<p class="description">
-				<pre>
+				<pre style="white-space:break-spaces;">
 					<div v-if="data.desc">{{data.desc}}</div>
 					<div v-else><i>No description</i></div>
 				</pre>
 			</p>
-			<h3>Releases:</h3>
+			<h2>Releases:</h2>
 			<table v-if="data.releases" style="border-collapse:collapse;">
 				<thead>
 					<th style="border: 1px solid #000;padding: 0.5rem;">File</th>
@@ -136,10 +142,15 @@ onMounted(() => {
 	border: var(--color-border) 1px solid;
 	border-radius: 1rem;
 	background-color: var(--color-background);
+	overflow: hidden;
+}
+
+.plugin-header {
+	margin-bottom: 0.5rem;
 }
 
 .plugin-name {
-/*	*/
+	font-size: 1.5rem;
 }
 
 .plugin-version {
@@ -149,6 +160,7 @@ onMounted(() => {
 }
 
 .plugin-authors {
+	text-indent: 1rem;
 	font-size: 1rem;
 	font-weight: 100;
 }

@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
-import { useRequest } from 'vue-request'
+import { NPagination } from 'naive-ui'
+import { usePagination } from 'vue-request'
 import TextSearch from 'vue-material-design-icons/TextSearch.vue'
 import Filter from 'vue-material-design-icons/Filter.vue'
 import SortAscending from 'vue-material-design-icons/SortAscending.vue'
@@ -19,24 +20,24 @@ const tagFilters = ref([])
 const sortBy = ref('name')
 const reverseSort = ref(false)
 
-const { data, loading: searching, run: refreshPluginList } = useRequest((event) => {
-	if(event && event.type === 'input'){
-		textFilter.value = event.target.value
-	}
-	errorText.value = null
+function getPluginList(){
 	return axios.get('/dev/plugins', {
 		params: {
 			filterBy: textFilter.value,
 			tags: tagFilters.value.join(','),
 			sortBy: sortBy.value,
 			reversed: reverseSort.value,
+			offset: (listCurrentPage.value - 1) * listPageSize.value,
+			limit: listPageSize.value,
 		}
-	}).then((resp) => {
-		if(resp.data.status !== 'ok'){
-			console.error('response for /plugins:', resp)
-			return null
+	}).then((res) => {
+		console.debug('response for /plugins:', res)
+		if(res.data.status !== 'ok'){
+			let err = new Error('Response status is not ok')
+			err.response = res
+			throw err
 		}
-		return resp.data.data
+		return res.data.data
 	}).catch((error) => {
 		console.error('Error when getting plugins:', error)
 		if(error.response && error.response.data){
@@ -44,18 +45,71 @@ const { data, loading: searching, run: refreshPluginList } = useRequest((event) 
 		}else{
 			errorText.value = error.code + ': ' + error.message
 		}
-		return null
+	})
+}
+
+function getPluginCounts(){
+	return axios.get('/dev/plugins/count', {
+		params: {
+			filterBy: textFilter.value,
+			sortBy: sortBy.value,
+			reversed: reverseSort.value,
+		}
+	}).then((res) => {
+		return res.data.data
+	}).catch((error) => {
+		console.error('Error when getting plugin count:', error)
+		if(!errorText.value){
+			if(error.response && error.response.data){
+				errorText.value = error.response.data.error + ': ' + error.response.data.message
+			}else{
+				errorText.value = error.code + ': ' + error.message
+			}
+		}
+	})
+}
+
+const {
+	data,
+	loading: searching,
+	run: refreshPluginList,
+	current: listCurrentPage,
+	totalPage,
+	pageSize: listPageSize,
+} = usePagination(() => {
+	return Promise.all([
+		getPluginList(), getPluginCounts()
+	]).then(([res1, res2]) => {
+		if(res1 && res2){
+			res1.total = res2.total
+			return res1
+		}
 	})
 }, {
+	errorRetryCount: 10,
 	debounceInterval: 300,
 	manual: true,
+	pagination: {
+		currentKey: 'page',
+		pageSizeKey: 'limit',
+		totalKey: 'total',
+	},
 })
 
-watch(tagFilters, refreshPluginList)
-watch(sortBy, refreshPluginList)
-watch(reverseSort, refreshPluginList)
+async function refreshFunc(event){
+	if(event && event.type === 'input'){
+		textFilter.value = event.target.value
+	}
+	errorText.value = null
+	searching.value = true
+	refreshPluginList()
+}
 
-const list = computed(() =>  data.value || [])
+watch(tagFilters, refreshFunc)
+watch(sortBy, refreshFunc)
+watch(reverseSort, refreshFunc)
+
+const list = computed(() =>  (data.value) || [])
 
 const showFilters = ref(false)
 
@@ -74,7 +128,7 @@ function onScroll(event){
 onMounted(() => {
 	window.addEventListener('scroll', onScroll)
 	searching.value = true
-	refreshPluginList()
+	refreshFunc()
 })
 
 onUnmounted(() => {
@@ -129,7 +183,14 @@ onUnmounted(() => {
 					</div>
 				</div>
 				<div class="plugin-list-pages">
-					<!-- TODO: split pages -->
+					<NPagination
+						v-model:page="listCurrentPage"
+						v-model:page-size="listPageSize"
+						:page-count="totalPage"
+						:page-slot="4"
+						:page-sizes="[5, 15, 50, 100]"
+						show-size-picker
+					/>
 				</div>
 			</div>
 			<Teleport to="#plugin-filter-teleport-slot" :disabled="pinHead"  v-if="showFilters">
@@ -311,6 +372,10 @@ onUnmounted(() => {
 	background-color: #e5e7eb;
 }
 
+.plugin-list-pages {
+	margin-left: 0.3rem;
+}
+
 .error-box{
 	display: flex;
 	align-items: center;
@@ -366,7 +431,7 @@ onUnmounted(() => {
 		margin-right: 0;
 	}
 	.plugin-list>*:first-child {
-		margin-top: 5rem;
+		margin-top: 7rem;
 		min-height: 12rem;
 	}
 	.plugin-list-head-pin {
@@ -382,6 +447,9 @@ onUnmounted(() => {
 	}
 	.plugin-search-input {
 		width: 100%;
+	}
+	.plugin-list-filter-box {
+		margin-bottom: 0.3rem;
 	}
 }
 

@@ -245,7 +245,7 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 			"`github_url`)" +
 			"VALUES (?,?,TRUE,?,?,?,?,?)"
 
-	now := time.Now()
+	now := time.Now().Format("2006-01-02 15:04:05")
 
 	sort.Strings(meta.Authors)
 	var (

@@ -26,16 +26,20 @@ func devPlugins(ctx iris.Context){
 	}
 	sortBy := ctx.URLParamTrim("sortBy")
 	reversed, _ := ctx.URLParamBool("reversed")
+	offset, _ := ctx.URLParamInt("offset")
+	limit, _ := ctx.URLParamInt("limit")
 	list, err := APIIns.GetPluginList(PluginListOpt{
 		FilterBy: filterBy,
 		Tags: tags,
 		SortBy: sortBy,
 		Reversed: reversed,
+		Offset: offset,
+		Limit: limit,
 	})
 	if err != nil {
 		ctx.StopWithJSON(iris.StatusInternalServerError, iris.Map{
 			"status": "error",
-			"error": "apiError",
+			"error": "ApiError",
 			"message": err.Error(),
 		})
 		return
@@ -46,13 +50,40 @@ func devPlugins(ctx iris.Context){
 	})
 }
 
+func devPluginCounts(ctx iris.Context){
+	filterBy := ctx.URLParamTrim("filterBy")
+	sortBy := ctx.URLParamTrim("sortBy")
+	reversed, _ := ctx.URLParamBool("reversed")
+	offset, _ := ctx.URLParamInt("offset")
+	limit, _ := ctx.URLParamInt("limit")
+	counts, err := APIIns.GetPluginCounts(PluginListOpt{
+		FilterBy: filterBy,
+		SortBy: sortBy,
+		Reversed: reversed,
+		Offset: offset,
+		Limit: limit,
+	})
+	if err != nil {
+		ctx.StopWithJSON(iris.StatusInternalServerError, iris.Map{
+			"status": "error",
+			"error": "ApiError",
+			"message": err.Error(),
+		})
+		return
+	}
+	ctx.JSON(iris.Map{
+		"status": "ok",
+		"data": counts,
+	})
+}
+
 func devPluginInfo(ctx iris.Context){
 	id := ctx.Params().GetString("id")
 	info, err := APIIns.GetPluginInfo(id)
 	if err != nil {
 		ctx.StopWithJSON(iris.StatusInternalServerError, iris.Map{
 			"status": "error",
-			"error": "apiError",
+			"error": "ApiError",
 			"message": err.Error(),
 		})
 		return
@@ -69,7 +100,7 @@ func devPluginReleases(ctx iris.Context){
 	if err != nil {
 		ctx.StopWithJSON(iris.StatusInternalServerError, iris.Map{
 			"status": "error",
-			"error": "apiError",
+			"error": "ApiError",
 			"message": err.Error(),
 		})
 		return
@@ -87,7 +118,7 @@ func devPluginRelease(ctx iris.Context){
 	if err != nil {
 		ctx.StopWithJSON(iris.StatusInternalServerError, iris.Map{
 			"status": "error",
-			"error": "apiError",
+			"error": "ApiError",
 			"message": err.Error(),
 		})
 		return
@@ -137,6 +168,10 @@ func GetDevAPIHandler()(http.Handler){
 	})
 
 	app.Get("/plugins", devPlugins)
+	app.PartyFunc("/plugins", func(p iris.Party){
+		p.Get("/", devPlugins)
+		p.Get("/count", devPluginCounts)
+	})
 	app.PartyFunc("/plugin", func(p iris.Party){
 		p.PartyFunc("/{id:string pid()}", func(p iris.Party){
 			p.Get("/info", devPluginInfo)
