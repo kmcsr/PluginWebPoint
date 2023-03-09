@@ -1,10 +1,11 @@
 
-package main
+package api
 
 import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,6 +21,10 @@ var (
 	BASE_DIR string = "/opt/pwebpoint"
 	CACHE_DIR string = filepath.Join(BASE_DIR, "caches")
 	PLUGIN_CACHE_DIR string = filepath.Join(CACHE_DIR, "plugin")
+)
+
+var (
+	ErrNotFound = errors.New("ErrNotFound")
 )
 
 var httpClient = &http.Client{
@@ -41,26 +46,29 @@ type PluginLabels struct {
 	Api         bool `json:"api,omitempty"`
 }
 
+type DependMap map[string]VersionCond
+
 type PluginInfo struct {
-	Id         string       `json:"id"`
-	Name       string       `json:"name"`
-	Version    string       `json:"version"`
-	Authors    []string     `json:"authors"`
-	Desc       string       `json:"desc,omitempty"`
-	Desc_zhCN  string       `json:"desc_zhcn,omitempty"`
-	CreateAt   time.Time    `json:"createAt"`
-	LastUpdate time.Time    `json:"lastUpdate"`
-	Repo       string       `json:"repo,omitempty"`
-	Link       string       `json:"link,omitempty"`
-	Labels     PluginLabels `json:"labels"`
-	Downloads  int64        `json:"downloads"`
-	GithubSync bool         `json:"github_sync"`
-	LastSync   *time.Time   `json:"last_sync,omitempty"`
+	Id           string       `json:"id"`
+	Name         string       `json:"name"`
+	Version      Version      `json:"version"`
+	Authors      []string     `json:"authors"`
+	Desc         string       `json:"desc,omitempty"`
+	Desc_zhCN    string       `json:"desc_zhcn,omitempty"`
+	CreateAt     time.Time    `json:"createAt"`
+	LastUpdate   time.Time    `json:"lastUpdate"`
+	Repo         string       `json:"repo,omitempty"`
+	Link         string       `json:"link,omitempty"`
+	Labels       PluginLabels `json:"labels"`
+	Downloads    int64        `json:"downloads"`
+	Dependencies DependMap    `json:"dependencies"`
+	GithubSync   bool         `json:"github_sync"`
+	LastSync     *time.Time   `json:"last_sync,omitempty"`
 }
 
 type PluginRelease struct {
 	Id        string    `json:"id"`
-	Tag       string    `json:"tag"`
+	Tag       Version   `json:"tag"`
 	Enabled   bool      `json:"enabled"`
 	Stable    bool      `json:"stable"`
 	Size      int64     `json:"size"`
@@ -84,26 +92,23 @@ type API interface {
 	GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err error)
 	GetPluginInfo(id string)(info *PluginInfo, err error)
 	GetPluginReleases(id string)(releases []*PluginRelease, err error)
-	GetPluginRelease(id string, tag string)(release *PluginRelease, err error)
-	GetPluginReleaseAsset(id string, tag string, filename string)(rc io.ReadSeekCloser, modTime time.Time, err error)
+	GetPluginRelease(id string, tag Version)(release *PluginRelease, err error)
+	GetPluginReleaseAsset(id string, tag Version, filename string)(rc io.ReadSeekCloser, modTime time.Time, err error)
 }
 
-var APIIns API = NewMySqlAPI()
+var Ins API = nil
 
 type MySqlAPI struct {
 	DB *sql.DB
 }
 
-func NewMySqlAPI()(api *MySqlAPI){
+var _ API = (*MySqlAPI)(nil)
+
+func NewMySqlAPI(username string, passwd string, address string, database string)(api *MySqlAPI){
 	var err error
 	api = new(MySqlAPI)
 
-	username := os.Getenv("DB_USER")
-	passwd := os.Getenv("DB_PASSWD")
-	address := os.Getenv("DB_ADDR")
-	database := os.Getenv("DB_NAME")
-
-	loger.Info("Connecting to db %s:*@%s/%s", username, address, database)
+	loger.Infof("Connecting to db %s:*@%s/%s", username, address, database)
 
 	if api.DB, err = sql.Open("mysql", fmt.Sprintf("%s:%s@%s/%s?parseTime=true", username, passwd, address, database)); err != nil {
 		loger.Fatalf("Cannot connect to database: %v", err)
@@ -131,15 +136,20 @@ func (api *MySqlAPI)GetPluginCounts(opt PluginListOpt)(count PluginCounts, err e
 	cmd := queryCmd
 	args := []any{}
 	cmd, args = opt.appendTextFilter(cmd, args)
+	cmd, args = opt.appendTagFilter(cmd, args)
 	cmd, args = opt.appendOrderBy(cmd, args)
 	cmd, args = opt.appendLimit(cmd, args)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
 	defer cancel()
 
-	if err = api.DB.QueryRowContext(ctx, cmd, args...).Scan(&count.Total,
+	var total sql.NullInt32
+	if err = api.DB.QueryRowContext(ctx, cmd, args...).Scan(&total,
 		&count.Information, &count.Tool, &count.Management, &count.Api); err != nil && err != sql.ErrNoRows {
 		return
+	}
+	if total.Valid {
+		count.Total = (int)(total.Int32)
 	}
 	err = nil
 	return
@@ -165,6 +175,7 @@ func (api *MySqlAPI)GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err er
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
 	defer cancel()
+	// Should I use *sql.Conn here? to ensure this request have connection within these query commands
 
 	infomap := make(map[string]*PluginInfo)
 
@@ -197,7 +208,6 @@ func (api *MySqlAPI)GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err er
 	if err = rows.Err(); err != nil {
 		return
 	}
-	rows.Close()
 	if rows, err = api.DB.QueryContext(ctx, queryDownloadCmd); err != nil {
 		return
 	}
@@ -231,6 +241,7 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 		"CONVERT_TZ(`last_sync`,@@session.time_zone,'+00:00') AS `utc_last_sync`" +
 		" FROM plugins WHERE `id`=? AND `enabled`=TRUE"
 	const queryDownloadCmd = "SELECT SUM(`downloads`) FROM plugin_releases WHERE `id`=?"
+	const queryDependenciesCmd = "SELECT `target`,`tag` FROM plugin_dependencies WHERE `id`=?"
 	var (
 		authors string
 	)
@@ -245,6 +256,9 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 		&info.Repo, &info.Link,
 		&info.Labels.Information, &info.Labels.Tool, &info.Labels.Management, &info.Labels.Api,
 		&info.GithubSync, &ghLastSync); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNotFound
+		}
 		return
 	}
 	var downloads sql.NullInt64
@@ -259,7 +273,25 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 		info.Downloads = downloads.Int64
 	}
 	info.Authors = strings.Split(authors, ",")
-	err = nil
+	info.Dependencies = make(DependMap, 5)
+	var rows *sql.Rows
+	if rows, err = api.DB.QueryContext(ctx, queryDependenciesCmd, id); err != nil {
+		return
+	}
+	defer rows.Close()
+	var (
+		pid string
+		cond VersionCond
+	)
+	for rows.Next() {
+		if err = rows.Scan(&pid, &cond); err != nil  {
+			return
+		}
+		info.Dependencies[pid] = cond
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
 	return
 }
 
@@ -299,7 +331,7 @@ func (api *MySqlAPI)GetPluginReleases(id string)(releases []*PluginRelease, err 
 	return
 }
 
-func (api *MySqlAPI)GetPluginRelease(id string, tag string)(release *PluginRelease, err error){
+func (api *MySqlAPI)GetPluginRelease(id string, tag Version)(release *PluginRelease, err error){
 	const queryCmd = "SELECT `enabled`,`stable`,`size`," +
 		"CONVERT_TZ(`uploaded`,@@session.time_zone,'+00:00') AS `utc_uploaded`," +
 		"`filename`,`downloads`,`github_url`" +
@@ -316,6 +348,9 @@ func (api *MySqlAPI)GetPluginRelease(id string, tag string)(release *PluginRelea
 	if err = api.DB.QueryRowContext(ctx, queryCmd, id, tag).
 		Scan(&release.Enabled, &release.Stable, &release.Size, &release.Uploaded,
 			&release.FileName, &downloads, &ghUrl); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNotFound
+		}
 		return
 	}
 	release.Id = id
@@ -343,8 +378,8 @@ type NopReadSeeker struct{
 
 func (NopReadSeeker)Close()(error){ return nil }
 
-func (api *MySqlAPI)GetPluginReleaseAsset(id string, tag string, filename string)(rc io.ReadSeekCloser, modTime time.Time, err error){
-	cache := filepath.Join(PLUGIN_CACHE_DIR, filepath.Clean(filepath.Join(id, tag, filename)))
+func (api *MySqlAPI)GetPluginReleaseAsset(id string, tag Version, filename string)(rc io.ReadSeekCloser, modTime time.Time, err error){
+	cache := filepath.Join(PLUGIN_CACHE_DIR, filepath.Clean(filepath.Join(id, tag.String(), filename)))
 	var fd *os.File
 	if fd, err = os.Open(cache); err == nil {
 		if stat, err := fd.Stat(); err == nil {
@@ -471,7 +506,11 @@ func (opt PluginListOpt)appendOrderBy(cmd string, args []any)(string, []any){
 	switch opt.SortBy {
 	case "id", "name", "authors", "lastUpdate":
 		cmd += " ORDER BY `" + opt.SortBy + "`"
-		if opt.Reversed {
+		rev := opt.Reversed
+		if opt.SortBy == "lastUpdate" {
+			rev = !rev
+		}
+		if rev {
 			cmd += " DESC"
 		}
 	}

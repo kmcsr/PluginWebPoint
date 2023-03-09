@@ -22,9 +22,16 @@ import (
 
 	"github.com/kmcsr/go-logger"
 	"github.com/kmcsr/go-logger/golog"
+	"github.com/kmcsr/PluginWebPoint/api"
 )
 
-var loger logger.Logger = golog.Logger
+var loger logger.Logger = getLogger()
+
+func getLogger()(loger logger.Logger){
+	loger = golog.Logger
+	golog.Unwrap(loger).Logger.SetTimeFormat("2006-01-02 15:04:05.000:")
+	return
+}
 
 //go:embed dist
 var dist embed.FS
@@ -59,6 +66,14 @@ func main(){
 		loger.SetLevel(logger.InfoLevel)
 	}
 	loger.Debug("Debug mode on")
+	api.SetLogger(loger)
+
+	username := os.Getenv("DB_USER")
+	passwd := os.Getenv("DB_PASSWD")
+	address := os.Getenv("DB_ADDR")
+	database := os.Getenv("DB_NAME")
+
+	api.Ins = api.NewMySqlAPI(username, passwd, address, database)
 
 	var (
 		err error
@@ -74,7 +89,7 @@ func main(){
 		indexFile = fd.(io.ReadSeeker)
 	}
 
-	http.Handle("/dev/", http.StripPrefix("/dev", GetDevAPIHandler()))
+	http.Handle("/dev/", http.StripPrefix("/dev", api.GetDevAPIHandler()))
 	http.Handle("/assets/", http.StripPrefix("/assets", NewConstFileServer(assetsFS, time.Time{})))
 	http.Handle("/", HandleConstData(indexFile, time.Time{}, "index.html"))
 
@@ -92,7 +107,7 @@ func main(){
 	go func(){
 		defer close(done)
 		loger.Infof("Server start at %s", server.Addr)
-		if err = server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			loger.Fatal(err)
 		}
 	}()

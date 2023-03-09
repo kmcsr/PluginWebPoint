@@ -21,9 +21,18 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/kmcsr/go-logger"
 	"github.com/kmcsr/go-logger/logrus"
+	"github.com/kmcsr/PluginWebPoint/api"
 )
 
-var loger logger.Logger = logrus.Logger
+var loger logger.Logger = initLogger()
+
+func initLogger()(loger logger.Logger){
+	loger = logrus.Logger
+	if os.Getenv("DEBUG") == "true" {
+		loger.SetLevel(logger.TraceLevel)
+	}
+	return
+}
 
 var DB *sql.DB = initDB()
 
@@ -44,7 +53,7 @@ func initDB()(DB *sql.DB){
 		loger.Fatalf("Cannot connect to database: %v", err)
 	}
 	DB.SetConnMaxLifetime(time.Minute * 3)
-	DB.SetMaxOpenConns(maxConn)
+	DB.SetMaxOpenConns(maxConn * 2 + 3)
 	DB.SetMaxIdleConns(maxConn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 3)
@@ -55,26 +64,13 @@ func initDB()(DB *sql.DB){
 	return
 }
 
-var (
-	dbConnLock sync.Mutex
-	dbConnCond = sync.NewCond(&dbConnLock)
-	dbConnCount int
-)
-
-func getDBConn(){
-	dbConnLock.Lock()
-	defer dbConnLock.Unlock()
-	for dbConnCount >= maxConn {
-		dbConnCond.Wait()
+func getDBConn(ctx context.Context)(conn *sql.Conn, err error){
+	conn, err = DB.Conn(ctx)
+	if err != nil {
+		loger.Errorf("Cannot get new conn: %T, %#v", err, err)
+		return
 	}
-	dbConnCount++
-}
-
-func releaseDBConn(){
-	dbConnLock.Lock()
-	defer dbConnLock.Unlock()
-	dbConnCount--
-	dbConnCond.Broadcast()
+	return
 }
 
 var (
@@ -135,7 +131,7 @@ type PluginInfo struct{
 	Labels Labels `json:"labels"`
 }
 
-type Dependencies map[string]string
+type DependMap map[string]api.VersionCond
 type Requirements []string
 
 type PluginMeta struct{
@@ -144,7 +140,7 @@ type PluginMeta struct{
 	Version string `json:"version"`
 	Repo string `json:"repository"`
 	Authors []string `json:"authors"`
-	Deps Dependencies `json:"Dependencies"`
+	Deps DependMap `json:"dependencies"`
 	Reqs Requirements `json:"requirements"`
 	Desc any `json:"description"`
 }
@@ -222,28 +218,31 @@ func GetPluginReleaseJson(id string)(meta PluginRelease, err error){
 	return
 }
 
+func ExecTx(tx *sql.Tx, cmd string, args ...any)(res sql.Result, err error){
+	loger.Debugf("Exec sql cmd: %s\n  args: %v", cmd, args)
+	for {
+		if res, err = tx.Exec(cmd, args...); err != nil {
+			if e, ok := err.(*mysql.MySQLError); ok {
+				switch e.Number {
+				case 1213:
+					continue
+				}
+			}
+		}
+		return
+	}
+}
+
 func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err error){
-	const updateCmd = "UPDATE plugins SET " +
-			"`name`=?," +
-			"`enabled`=?," +
-			"`version`=?," +
-			"`authors`=?," +
-			"`desc`=?," +
-			"`desc_zhCN`=?," +
-			"`repo`=?," +
-			"`link`=?," +
-			"`label_information`=?," +
-			"`label_tool`=?," +
-			"`label_management`=?," +
-			"`label_api`=?," +
-			"`last_sync`=? " +
-		"WHERE `id`=? AND `github_sync`=TRUE"
-	const insertCmd = "INSERT INTO plugins (`id`,`name`,`enabled`,`version`,`authors`,`desc`,`desc_zhCN`,`repo`,`link`," +
-			"`label_information`,`label_tool`,`label_management`,`label_api`,`github_sync`,`last_sync`)" +
-			"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,TRUE,?)"
-	const insertReleaseCmd = "INSERT INTO plugin_releases (`id`,`tag`,`enabled`,`stable`,`size`,`filename`,`downloads`," +
-			"`github_url`)" +
-			"VALUES (?,?,TRUE,?,?,?,?,?)"
+	const insertCmd = "INSERT IGNORE INTO plugins (`id`,`name`,`enabled`,`version`,`authors`,`desc`,`desc_zhCN`,`repo`,`link`," +
+		"`label_information`,`label_tool`,`label_management`,`label_api`,`github_sync`,`last_sync`)" +
+		"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,TRUE,?)"
+	const removeDepenceCmd = "DELETE FROM plugin_dependencies WHERE `id`=?"
+	const insertDepenceCmd = "INSERT INTO plugin_dependencies (`id`,`target`,`tag`)" +
+		"VALUES (?,?,?)"
+	const insertReleaseCmd = "INSERT IGNORE INTO plugin_releases (`id`,`tag`,`enabled`,`stable`,`size`,`filename`,`downloads`," +
+		"`github_url`)" +
+		"VALUES (?,?,TRUE,?,?,?,?,?)"
 
 	now := time.Now().Format("2006-01-02 15:04:05")
 
@@ -267,40 +266,49 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 		return
 	}
 
-	getDBConn()
-	defer releaseDBConn()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
+	defer cancel()
 
-	tx, err := DB.Begin()
+	conn, err := getDBConn(ctx)
 	if err != nil {
-		loger.Errorf("Error when new Tx")
+		return
+	}
+	defer conn.Close()
+
+	var flag sql.NullBool
+	if err = conn.QueryRowContext(ctx,
+		"SELECT 1 FROM plugins WHERE `id`=? AND `github_sync`=TRUE LIMIT 1", info.Id).Scan(&flag); err != nil {
+		return
+	}
+	if flag.Valid && !flag.Bool {
+		loger.Debugf("Plugin %s is not synced from github", info.Id)
+		return
+	}
+
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
 		return
 	}
 	defer tx.Rollback()
-	var res sql.Result
-	loger.Infof("Updating database for %s", info.Id)
-	if res, err = tx.Exec(updateCmd, meta.Name, !info.Disable, meta.Version,
+
+	loger.Infof("Insert into database for %s", info.Id)
+	if _, err = tx.Exec(insertCmd, info.Id, meta.Name, !info.Disable, meta.Version,
 		strings.Join(meta.Authors, ","), desc, desc_zhCN, info.Repo, link,
 		info.Labels.HasInformation(), info.Labels.HasTool(), info.Labels.HasManagement(), info.Labels.HasAPI(),
-		now, info.Id); err != nil {
+		now); err != nil {
 		return
 	}
-	var n int64
-	if n, err = res.RowsAffected(); err != nil {
+	if _, err = ExecTx(tx, removeDepenceCmd, info.Id); err != nil {
 		return
 	}
-	if n == 0 {
-		loger.Infof("Insert into database for %s", info.Id)
-		if res, err = tx.Exec(insertCmd, info.Id, meta.Name, !info.Disable, meta.Version,
-			strings.Join(meta.Authors, ","), desc, desc_zhCN, info.Repo, link,
-			info.Labels.HasInformation(), info.Labels.HasTool(), info.Labels.HasManagement(), info.Labels.HasAPI(),
-			now); err != nil {
-			// loger.Errorf("Error when insert meta into sql")
+	for id, cond := range meta.Deps {
+		if _, err = ExecTx(tx, insertDepenceCmd, info.Id, id, cond); err != nil {
 			return
 		}
 	}
 	for _, release := range releases.Releases {
 		assets := release.Assets[0]
-		if _, err = tx.Exec(insertReleaseCmd, info.Id, release.ParsedVersion, release.Prerelease,
+		if _, err = ExecTx(tx, insertReleaseCmd, info.Id, release.ParsedVersion, release.Prerelease,
 			assets.Size, assets.Name, assets.DownloadCount, assets.BrowserDownloadUrl); err != nil {
 			if e, ok := err.(*mysql.MySQLError); ok {
 				if e.Number == 1062 {
@@ -360,12 +368,12 @@ func main(){
 				defer wg.Done()
 				meta, err := GetPluginMetaJson(info.Id)
 				if err != nil {
-					loger.Errorf("Cannot get meta json: %v", err)
+					loger.Errorf("[%s] Cannot get meta json: %v", info.Id, err)
 					return
 				}
 				releases, err := GetPluginReleaseJson(info.Id)
 				if err = updateSql(info, meta, releases); err != nil {
-					loger.Errorf("Cannot update to database: %v", err)
+					loger.Errorf("[%s] Cannot update to database: %v", info.Id, err)
 				}
 			}(info)
 		}

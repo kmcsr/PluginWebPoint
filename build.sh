@@ -3,20 +3,26 @@
 WEB_ONLY=
 RUN=
 DEBUG="${DEBUG}"
+DEV="${DEV}"
+NPM_DIR=vue-project
 
 function build_web(){
-	_subdir=vue-project
-	cd "$_subdir"
+	cd "$NPM_DIR"
 	if [[ "$DEBUG" == true ]]; then
-		npm run build || return $?
-	else
 		npm run build_dev || return $?
+	else
+		npm run build || return $?
 	fi
 
 	cd ..
 	rm -rf "./dist"
-	cp -a "${_subdir}/dist" ./dist
+	cp -a "${NPM_DIR}/dist" ./dist
 	return $?
+}
+
+function build_watch(){
+	cd "$NPM_DIR"
+	exec npm run build_watch
 }
 
 function build_app(){
@@ -40,11 +46,23 @@ while [ -n "$1" ]; do
 		-d | --debug)
 			DEBUG=true
 			;;
+		-D | --dev)
+			DEV=true
+			;;
 	esac
 	shift
 done
 
 cd $(dirname $0)
+
+if [[ "$DEV" == true ]]; then
+	build_watch &
+	pid=$!
+	go run ./dev/
+	_e=$?
+	kill -s SIGINT "$pid"
+	exit $_e
+fi
 
 build_web || exit $?
 
