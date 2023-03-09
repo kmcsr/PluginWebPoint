@@ -18,7 +18,7 @@ const errorText = ref(null)
 
 const textFilter = ref('')
 const tagFilters = ref([])
-const sortBy = ref('name')
+const sortBy = ref('downloads')
 const reverseSort = ref(false)
 
 const {
@@ -39,7 +39,7 @@ const {
 	})
 }, {
 	errorRetryCount: 10,
-	debounceInterval: 300,
+	debounceInterval: 700,
 	manual: true,
 	pagination: {
 		currentKey: 'page',
@@ -118,15 +118,13 @@ function getPluginCounts(){
 	})
 }
 
-async function refreshFunc(event){
-	if(event && event.type === 'input'){
-		textFilter.value = event.target.value
-	}
+async function refreshFunc(){
 	errorText.value = null
 	searching.value = true
 	refreshPluginList()
 }
 
+watch(textFilter, refreshFunc)
 watch(tagFilters, refreshFunc)
 watch(sortBy, refreshFunc)
 watch(reverseSort, refreshFunc)
@@ -204,7 +202,7 @@ onUnmounted(() => {
 			<div class="plugin-head-up">
 				<div class="plugin-list-searchbox">
 					<TextSearch class="flex-box plugin-list-search-icon" size="1.5rem"/>
-					<input class="plugin-search-input" type="search" @input="refreshFunc"
+					<input class="plugin-search-input" type="search" v-model="textFilter"
 						placeholder="Search plugins..." />
 				</div>
 				<div class="plugin-list-filter-box">
@@ -219,10 +217,11 @@ onUnmounted(() => {
 						<component :is="reverseSort?SortDescending:SortAscending"
 							class="flex-box plugin-sorts-icon" size="1.5rem" @click="reverseSort=!reverseSort"/>
 						<select id="plugin-sorts-options" v-model="sortBy">
+							<option value="downloads">Downloads</option>
+							<option value="lastUpdate">Last Update</option>
 							<option value="name">Name</option>
 							<option value="id">ID</option>
 							<option value="authors">Authors</option>
-							<option value="lastUpdate">Last Update</option>
 						</select>
 					</div>
 				</div>

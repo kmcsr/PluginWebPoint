@@ -143,41 +143,46 @@ func (api *MySqlAPI)GetPluginCounts(opt PluginListOpt)(count PluginCounts, err e
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
 	defer cancel()
 
-	var total sql.NullInt32
+	var (
+		total, ctInfo, ctTool, ctMng, ctApi sql.NullInt32
+	)
 	if err = api.DB.QueryRowContext(ctx, cmd, args...).Scan(&total,
-		&count.Information, &count.Tool, &count.Management, &count.Api); err != nil && err != sql.ErrNoRows {
+		&ctInfo, &ctTool, &ctMng, &ctApi); err != nil && err != sql.ErrNoRows {
 		return
 	}
 	if total.Valid {
 		count.Total = (int)(total.Int32)
+		count.Information = (int)(ctInfo.Int32)
+		count.Tool = (int)(ctTool.Int32)
+		count.Management = (int)(ctMng.Int32)
+		count.Api = (int)(ctApi.Int32)
 	}
 	err = nil
 	return
 }
 
 func (api *MySqlAPI)GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err error){
-	const queryCmd = "SELECT `id`,`name`,`version`,`authors`,`desc`," +
-		"CONVERT_TZ(`createAt`,@@session.time_zone,'+00:00') AS `utc_createAt`," +
-		"CONVERT_TZ(`lastUpdate`,@@session.time_zone,'+00:00') AS `utc_lastUpdate`," +
+	const queryCmd = "SELECT a.`id`,a.`name`,a.`version`,a.`authors`,a.`desc`," +
+		"CONVERT_TZ(a.`createAt`,@@session.time_zone,'+00:00') AS `utc_createAt`," +
+		"CONVERT_TZ(a.`lastUpdate`,@@session.time_zone,'+00:00') AS `utc_lastUpdate`," +
 		"`label_information`,`label_tool`,`label_management`,`label_api`," +
 		"`github_sync`," +
-		"CONVERT_TZ(`last_sync`,@@session.time_zone,'+00:00') AS `utc_last_sync`" +
-		" FROM plugins WHERE `enabled`=TRUE"
-	const queryDownloadCmd = "SELECT SUM(`downloads`),`id` FROM plugin_releases GROUP BY `id`"
+		"CONVERT_TZ(`last_sync`,@@session.time_zone,'+00:00') AS `utc_last_sync`," +
+		"SUM(b.`downloads`) AS `downloads`" +
+		" FROM plugins as a,plugin_releases as b" +
+		" WHERE a.`id`=b.`id` AND a.`enabled`=TRUE"
 
 	loger.Debugf("Getting plugin list with option %#v", opt)
 	cmd := queryCmd
 	args := []any{}
 	cmd, args = opt.appendTextFilter(cmd, args)
 	cmd, args = opt.appendTagFilter(cmd, args)
+	cmd += " GROUP BY a.`id`"
 	cmd, args = opt.appendOrderBy(cmd, args)
 	cmd, args = opt.appendLimit(cmd, args)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
 	defer cancel()
-	// Should I use *sql.Conn here? to ensure this request have connection within these query commands
-
-	infomap := make(map[string]*PluginInfo)
 
 	var rows *sql.Rows
 	loger.Debugf("exec sql: %q", cmd)
@@ -192,39 +197,21 @@ func (api *MySqlAPI)GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err er
 			info PluginInfo
 			authors string
 			ghLastSync sql.NullTime
+			downloads sql.NullInt64
 		)
 		if err = rows.Scan(&info.Id, &info.Name, &info.Version, &authors, &info.Desc, &info.CreateAt, &info.LastUpdate,
 			&info.Labels.Information, &info.Labels.Tool, &info.Labels.Management, &info.Labels.Api,
-			&info.GithubSync, &ghLastSync); err != nil {
+			&info.GithubSync, &ghLastSync, &downloads); err != nil {
 			return
 		}
 		info.Authors = strings.Split(authors, ",")
-		infomap[info.Id] = &info
 		if ghLastSync.Valid {
 			info.LastSync = &ghLastSync.Time
 		}
-		infos = append(infos, &info)
-	}
-	if err = rows.Err(); err != nil {
-		return
-	}
-	if rows, err = api.DB.QueryContext(ctx, queryDownloadCmd); err != nil {
-		return
-	}
-	defer rows.Close()
-	var (
-		downloads sql.NullInt64
-		pid string
-	)
-	for rows.Next() {
-		if err = rows.Scan(&downloads, &pid); err != nil {
-			return
-		}
 		if downloads.Valid {
-			if info, ok := infomap[pid]; ok {
-				info.Downloads = downloads.Int64
-			}
+			info.Downloads = downloads.Int64
 		}
+		infos = append(infos, &info)
 	}
 	if err = rows.Err(); err != nil {
 		return
@@ -233,14 +220,16 @@ func (api *MySqlAPI)GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err er
 }
 
 func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
-	const queryCmd = "SELECT `name`,`version`,`authors`,`desc`,`desc_zhCN`," +
-		"CONVERT_TZ(`createAt`,@@session.time_zone,'+00:00') AS `utc_createAt`," +
-		"CONVERT_TZ(`lastUpdate`,@@session.time_zone,'+00:00') AS `utc_lastUpdate`," +
-		"`repo`,`link`,`label_information`,`label_tool`,`label_management`,`label_api`," +
+	const queryCmd = "SELECT a.`name`,a.`version`,a.`authors`,a.`desc`,a.`desc_zhCN`," +
+		"CONVERT_TZ(a.`createAt`,@@session.time_zone,'+00:00') AS `utc_createAt`," +
+		"CONVERT_TZ(a.`lastUpdate`,@@session.time_zone,'+00:00') AS `utc_lastUpdate`," +
+		"a.`repo`,a.`link`,`label_information`,`label_tool`,`label_management`,`label_api`," +
 		"`github_sync`," +
-		"CONVERT_TZ(`last_sync`,@@session.time_zone,'+00:00') AS `utc_last_sync`" +
-		" FROM plugins WHERE `id`=? AND `enabled`=TRUE"
-	const queryDownloadCmd = "SELECT SUM(`downloads`) FROM plugin_releases WHERE `id`=?"
+		"CONVERT_TZ(`last_sync`,@@session.time_zone,'+00:00') AS `utc_last_sync`," +
+		"SUM(b.`downloads`) AS `downloads`" +
+		" FROM plugins as a,plugin_releases as b" +
+		" WHERE a.`id`=? AND a.`id`=b.`id` AND a.`enabled`=TRUE" +
+		" GROUP BY a.`id`"
 	const queryDependenciesCmd = "SELECT `target`,`tag` FROM plugin_dependencies WHERE `id`=?"
 	var (
 		authors string
@@ -249,20 +238,19 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
 	defer cancel()
 
-	var ghLastSync sql.NullTime
+	var (
+		ghLastSync sql.NullTime
+		downloads sql.NullInt64
+	)
 	info = new(PluginInfo)
 	if err = api.DB.QueryRowContext(ctx, queryCmd, id).
 		Scan(&info.Name, &info.Version, &authors, &info.Desc, &info.Desc_zhCN, &info.CreateAt, &info.LastUpdate,
 		&info.Repo, &info.Link,
 		&info.Labels.Information, &info.Labels.Tool, &info.Labels.Management, &info.Labels.Api,
-		&info.GithubSync, &ghLastSync); err != nil {
+		&info.GithubSync, &ghLastSync, &downloads); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
 		}
-		return
-	}
-	var downloads sql.NullInt64
-	if err = api.DB.QueryRowContext(ctx, queryDownloadCmd, id).Scan(&downloads); err != nil && err != sql.ErrNoRows {
 		return
 	}
 	info.Id = id
@@ -504,10 +492,11 @@ func (opt PluginListOpt)appendTagFilter(cmd string, args []any)(string, []any){
 
 func (opt PluginListOpt)appendOrderBy(cmd string, args []any)(string, []any){
 	switch opt.SortBy {
-	case "id", "name", "authors", "lastUpdate":
+	case "id", "name", "authors", "lastUpdate", "downloads":
 		cmd += " ORDER BY `" + opt.SortBy + "`"
 		rev := opt.Reversed
-		if opt.SortBy == "lastUpdate" {
+		switch opt.SortBy {
+		case "lastUpdate", "downloads":
 			rev = !rev
 		}
 		if rev {
