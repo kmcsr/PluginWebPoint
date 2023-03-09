@@ -164,10 +164,10 @@ onMounted(() => {
 			reverseSort.value = Boolean(q.reversed)
 		}
 		if(q.pg){
-			listCurrentPage.value = Number.parseInt(query.pg) || 1
+			listCurrentPage.value = Number.parseInt(q.pg) || 1
 		}
 		if(q.ps){
-			listPageSize.value = Number.parseInt(query.ps) || 5
+			listPageSize.value = Number.parseInt(q.ps) || 5
 		}
 	}
 	refreshFunc()
@@ -182,21 +182,43 @@ onUnmounted(() => {
 <template>
 	<div class="plugin-list" ref="pluginList">
 		<KeepAlive>
-			<TransitionGroup name="pbody" tag="div">
-				<div id="plugin-filter-teleport-slot"></div>
-				<div v-if="searching" style="width:100%;min-height:6rem;display:flex;flex-direction:row;justify-content:center;align-items:center;">
-					<b>Searching...</b>
+			<div>
+				<div class="plugin-top-pages">
+					<NPagination
+						v-model:page="listCurrentPage"
+						v-model:page-size="listPageSize"
+						:page-count="totalPage"
+						:page-slot="6"
+						:page-sizes="[5, 15, 50, 100]"
+						show-size-picker
+					/>
 				</div>
-				<div v-else-if="errorText" class="error-box">
-					{{errorText}}
-				</div>
-				<TransitionGroup v-else-if="list.length" class="plugin-list-body" name="plist" tag="div">
-					<PluginItem  v-for="data in list" :key="data.id" :data="data"/>
+				<TransitionGroup name="pbody" tag="div">
+					<div id="plugin-filter-teleport-slot"></div>
+					<div v-if="searching" style="width:100%;min-height:6rem;display:flex;flex-direction:row;justify-content:center;align-items:center;">
+						<b>Searching...</b>
+					</div>
+					<div v-else-if="errorText" class="error-box">
+						{{errorText}}
+					</div>
+					<TransitionGroup v-else-if="list.length" class="plugin-list-body" name="plist" tag="div">
+						<PluginItem  v-for="data in list" :key="data.id" :data="data"/>
+					</TransitionGroup>
+					<div v-else style="width:100%;min-height:6rem;display:flex;flex-direction:row;justify-content:center;align-items:center;">
+						<b>No plugin was found</b>
+					</div>
 				</TransitionGroup>
-				<div v-else style="width:100%;min-height:6rem;display:flex;flex-direction:row;justify-content:center;align-items:center;">
-					<b>No plugin was found</b>
+				<div class="plugin-bottom-pages">
+					<NPagination
+						v-model:page="listCurrentPage"
+						v-model:page-size="listPageSize"
+						:page-count="totalPage"
+						:page-slot="6"
+						:page-sizes="[5, 15, 50, 100]"
+						show-size-picker
+					/>
 				</div>
-			</TransitionGroup>
+			</div>
 		</KeepAlive>
 		<div class="plugin-list-head" ref="pluginListHead" :class="pinHead?'plugin-list-head-pin':''">
 			<div class="plugin-head-up">
@@ -224,16 +246,6 @@ onUnmounted(() => {
 							<option value="authors">Authors</option>
 						</select>
 					</div>
-				</div>
-				<div class="plugin-list-pages">
-					<NPagination
-						v-model:page="listCurrentPage"
-						v-model:page-size="listPageSize"
-						:page-count="totalPage"
-						:page-slot="4"
-						:page-sizes="[5, 15, 50, 100]"
-						show-size-picker
-					/>
 				</div>
 			</div>
 			<Teleport to="#plugin-filter-teleport-slot" :disabled="pinHead"  v-if="showFilters">
@@ -443,6 +455,20 @@ onUnmounted(() => {
 	overflow: hidden;
 }
 
+.plugin-top-pages {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	margin-top: 0.5rem;
+}
+
+.plugin-bottom-pages {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	margin: 1rem 0;
+}
+
 .pbody-enter-active,
 .pbody-leave-active,
 .plist-move,
@@ -474,7 +500,7 @@ onUnmounted(() => {
 		margin-right: 0;
 	}
 	.plugin-list>*:first-child {
-		margin-top: 7rem;
+		margin-top: 5.2rem;
 		min-height: 12rem;
 	}
 	.plugin-list-head-pin {
