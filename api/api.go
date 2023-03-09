@@ -169,8 +169,8 @@ func (api *MySqlAPI)GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err er
 		"`github_sync`," +
 		"CONVERT_TZ(`last_sync`,@@session.time_zone,'+00:00') AS `utc_last_sync`," +
 		"SUM(b.`downloads`) AS `downloads`" +
-		" FROM plugins as a,plugin_releases as b" +
-		" WHERE a.`id`=b.`id` AND a.`enabled`=TRUE"
+		" FROM plugins as a LEFT JOIN plugin_releases as b" +
+		" ON a.`id`=b.`id` WHERE a.`enabled`=TRUE"
 
 	loger.Debugf("Getting plugin list with option %#v", opt)
 	cmd := queryCmd
@@ -227,8 +227,8 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 		"`github_sync`," +
 		"CONVERT_TZ(`last_sync`,@@session.time_zone,'+00:00') AS `utc_last_sync`," +
 		"SUM(b.`downloads`) AS `downloads`" +
-		" FROM plugins as a,plugin_releases as b" +
-		" WHERE a.`id`=? AND a.`id`=b.`id` AND a.`enabled`=TRUE" +
+		" FROM plugins as a LEFT JOIN plugin_releases as b" +
+		" ON a.`id`=b.`id` WHERE a.`id`=? AND a.`enabled`=TRUE" +
 		" GROUP BY a.`id`"
 	const queryDependenciesCmd = "SELECT `target`,`tag` FROM plugin_dependencies WHERE `id`=?"
 	var (

@@ -150,6 +150,10 @@ defineProps({
 		width: 100%;
 		margin-left: 0;
 	}
+	.description>div {
+		height: 4.5rem;
+		-webkit-line-clamp: 3;
+	}
 	.label-item {
 		border-right: none;
 	}
