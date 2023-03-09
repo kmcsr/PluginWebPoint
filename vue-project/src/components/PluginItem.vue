@@ -28,7 +28,7 @@ defineProps({
 				</span>
 			</div>
 			<p class="description">
-				<div v-if="desc">{{data.desc}}</div>
+				<div v-if="data.desc">{{data.desc}}</div>
 				<div v-else><i>No description</i></div>
 			</p>
 			<div class="labels">

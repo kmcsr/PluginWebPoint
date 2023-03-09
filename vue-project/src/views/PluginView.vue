@@ -1,5 +1,5 @@
 <script setup>
-import { defineProps, onMounted, ref } from 'vue'
+import { defineProps, onBeforeMount, onMounted, ref } from 'vue'
 import { useRequest } from 'vue-request'
 import axios from 'axios'
 import UpdateSvg from 'vue-material-design-icons/Update.vue'
@@ -14,6 +14,8 @@ const props = defineProps({
 	'plugin': String
 })
 
+const errorText = ref(null)
+
 const { data, run: freshData } = useRequest(() => {
 	return Promise.all([axios.get(`/dev/plugin/${props.plugin}/info`).then((res) => {
 		if(res.data.status !== 'ok'){
@@ -21,9 +23,17 @@ const { data, run: freshData } = useRequest(() => {
 			err.response = res
 			throw err
 		}
-		return res.data.data
-	}).catch((res) => {
-		console.error('Error when fetching plugin data:', res)
+		const data = res.data.data
+		document.title = `${data.name} | PWP`
+		return data
+	}).catch((error) => {
+		console.error('Error when fetching plugin data:', error)
+		if(error.response && error.response.data){
+			errorText.value = error.response.data.error + ': ' + error.response.data.message
+		}else{
+			errorText.value = error.code + ': ' + error.message
+		}
+		throw res
 	}), axios.get(`/dev/plugin/${props.plugin}/releases`).then((res) => {
 		if(res.data.status !== 'ok'){
 			let err = new Error('Response status is not ok')
@@ -40,9 +50,24 @@ const { data, run: freshData } = useRequest(() => {
 	})
 })
 
+function pluginDependUrl(id){
+	if(id === 'mcdreforged'){
+		return 'https://github.com/MCDReforged/PluginCatalogue'
+	}
+	return `/plugin/${id}`
+}
+
+onBeforeMount(() => {
+	if(props.plugin === 'mcdreforged'){
+		window.location.replace('https://github.com/MCDReforged/PluginCatalogue')
+		return
+	}
+})
+
 onMounted(() => {
 	freshData()
 })
+
 
 </script>
 
@@ -108,26 +133,46 @@ onMounted(() => {
 					<div v-else><i>No description</i></div>
 				</pre>
 			</p>
-			<h2>Releases:</h2>
-			<table v-if="data.releases" style="border-collapse:collapse;">
+			<h2>Dependencies:</h2>
+			<table>
 				<thead>
-					<th style="border: 1px solid #000;padding: 0.5rem;">File</th>
-					<th style="border: 1px solid #000;padding: 0.5rem;">Size</th>
-					<th style="border: 1px solid #000;padding: 0.5rem;">Downloads</th>
+					<th>ID</th>
+					<th>Tag</th>
+				</thead>
+				<tbody>
+					<tr v-for="[id, cond] in Object.entries(data.dependencies)">
+						<td>
+							<a :href="pluginDependUrl(id)">
+								{{id}}
+							</a>
+						</td>
+						<td>{{cond}}</td>
+					</tr>
+				</tbody>
+			</table>
+			<h2>Releases:</h2>
+			<table v-if="data.releases">
+				<thead>
+					<th>File</th>
+					<th>Size</th>
+					<th>Downloads</th>
 				</thead>
 				<tbody>
 					<tr v-for="r in data.releases.reverse()">
-						<td style="border: 1px solid #000;padding: 0.5rem;">
+						<td>
 							<a :href="`/download/${r.id}/${r.tag}/${r.filename}`">
 								{{r.filename}}
 							</a>
 						</td>
-						<td style="border: 1px solid #000;padding: 0.5rem;">{{fmtSize(r.size)}}</td>
-						<td style="border: 1px solid #000;padding: 0.5rem;">{{r.downloads}}</td>
+						<td>{{fmtSize(r.size)}}</td>
+						<td>{{r.downloads}}</td>
 					</tr>
 				</tbody>
 			</table>
 			<div v-else><i>No release</i></div>
+		</div>
+		<div v-else-if="errorText" class="error-box">
+			{{errorText}}
 		</div>
 		<div v-else>
 			Loading...
@@ -173,6 +218,11 @@ onMounted(() => {
 
 .description {
 	margin: 0.2rem;
+}
+
+th, td {
+	border: 1px solid #000;
+	padding: 0.5rem;
 }
 
 </style>

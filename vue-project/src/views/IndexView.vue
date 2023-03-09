@@ -20,55 +20,6 @@ const tagFilters = ref([])
 const sortBy = ref('name')
 const reverseSort = ref(false)
 
-function getPluginList(){
-	return axios.get('/dev/plugins', {
-		params: {
-			filterBy: textFilter.value,
-			tags: tagFilters.value.join(','),
-			sortBy: sortBy.value,
-			reversed: reverseSort.value,
-			offset: (listCurrentPage.value - 1) * listPageSize.value,
-			limit: listPageSize.value,
-		}
-	}).then((res) => {
-		console.debug('response for /plugins:', res)
-		if(res.data.status !== 'ok'){
-			let err = new Error('Response status is not ok')
-			err.response = res
-			throw err
-		}
-		return res.data.data
-	}).catch((error) => {
-		console.error('Error when getting plugins:', error)
-		if(error.response && error.response.data){
-			errorText.value = error.response.data.error + ': ' + error.response.data.message
-		}else{
-			errorText.value = error.code + ': ' + error.message
-		}
-	})
-}
-
-function getPluginCounts(){
-	return axios.get('/dev/plugins/count', {
-		params: {
-			filterBy: textFilter.value,
-			sortBy: sortBy.value,
-			reversed: reverseSort.value,
-		}
-	}).then((res) => {
-		return res.data.data
-	}).catch((error) => {
-		console.error('Error when getting plugin count:', error)
-		if(!errorText.value){
-			if(error.response && error.response.data){
-				errorText.value = error.response.data.error + ': ' + error.response.data.message
-			}else{
-				errorText.value = error.code + ': ' + error.message
-			}
-		}
-	})
-}
-
 const {
 	data,
 	loading: searching,
@@ -95,6 +46,56 @@ const {
 		totalKey: 'total',
 	},
 })
+
+function getPluginList(){
+	return axios.get('/dev/plugins', {
+		params: {
+			filterBy: textFilter.value,
+			tags: tagFilters.value.join(','),
+			sortBy: sortBy.value,
+			reversed: reverseSort.value,
+			offset: (listCurrentPage.value - 1) * listPageSize.value,
+			limit: listPageSize.value,
+		}
+	}).then((res) => {
+		console.debug('response for /plugins:', res)
+		if(res.data.status !== 'ok'){
+			let err = new Error('Response status is not ok')
+			err.response = res
+			throw err
+		}
+		return res.data.data
+	}).catch((error) => {
+		console.error('Error when getting plugins:', error)
+		if(error.response && error.response.data){
+			errorText.value = error.response.data.error + ': ' + error.response.data.message
+		}else{
+			errorText.value = error.code + ': ' + error.message
+		}
+		throw error // keep pop error
+	})
+}
+
+function getPluginCounts(){
+	return axios.get('/dev/plugins/count', {
+		params: {
+			filterBy: textFilter.value,
+			tags: tagFilters.value.join(','),
+		}
+	}).then((res) => {
+		return res.data.data
+	}).catch((error) => {
+		console.error('Error when getting plugin count:', error)
+		if(!errorText.value){
+			if(error.response && error.response.data){
+				errorText.value = error.response.data.error + ': ' + error.response.data.message
+			}else{
+				errorText.value = error.code + ': ' + error.message
+			}
+		}
+		throw error // keep pop error
+	})
+}
 
 async function refreshFunc(event){
 	if(event && event.type === 'input'){
@@ -145,12 +146,12 @@ onUnmounted(() => {
 				<div v-if="searching" style="width:100%;min-height:6rem;display:flex;flex-direction:row;justify-content:center;align-items:center;">
 					<b>Searching...</b>
 				</div>
-				<TransitionGroup v-else-if="list.length" class="plugin-list-body" name="plist" tag="div">
-					<PluginItem  v-for="data in list" :key="data.id" :data="data"/>
-				</TransitionGroup>
 				<div v-else-if="errorText" class="error-box">
 					{{errorText}}
 				</div>
+				<TransitionGroup v-else-if="list.length" class="plugin-list-body" name="plist" tag="div">
+					<PluginItem  v-for="data in list" :key="data.id" :data="data"/>
+				</TransitionGroup>
 				<div v-else style="width:100%;min-height:6rem;display:flex;flex-direction:row;justify-content:center;align-items:center;">
 					<b>No plugin was found</b>
 				</div>
@@ -160,7 +161,7 @@ onUnmounted(() => {
 			<div class="plugin-head-up">
 				<div class="plugin-list-searchbox">
 					<TextSearch class="flex-box plugin-list-search-icon" size="1.5rem"/>
-					<input class="plugin-search-input" type="search" @input="refreshPluginList"
+					<input class="plugin-search-input" type="search" @input="refreshFunc"
 						placeholder="Search plugins..." />
 				</div>
 				<div class="plugin-list-filter-box">
