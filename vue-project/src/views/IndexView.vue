@@ -7,6 +7,7 @@ import Filter from 'vue-material-design-icons/Filter.vue'
 import SortAscending from 'vue-material-design-icons/SortAscending.vue'
 import SortDescending from 'vue-material-design-icons/SortDescending.vue'
 import axios from 'axios'
+import router from '../router'
 import LabelIcon from '../components/LabelIcon.vue'
 import PluginItem from '../components/PluginItem.vue'
 
@@ -48,6 +49,26 @@ const {
 })
 
 function getPluginList(){
+	let query = {}
+	if(textFilter.value.length){
+		query.q = textFilter.value
+	}
+	if(tagFilters.value.length){
+		query.t = tagFilters.value.join(',')
+	}
+	if(sortBy.value.length){
+		query.s = sortBy.value
+	}
+	if(reverseSort.value){
+		query.reversed = 'true'
+	}
+	if(listCurrentPage.value > 1){
+		query.pg = listCurrentPage.value
+		query.ps = listPageSize.value
+	}
+	if(router.currentRoute.value.query !== query){
+		router.push({ query: query })
+	}
 	return axios.get('/dev/plugins', {
 		params: {
 			filterBy: textFilter.value,
@@ -129,6 +150,28 @@ function onScroll(event){
 onMounted(() => {
 	window.addEventListener('scroll', onScroll)
 	searching.value = true
+	console.debug('currentRoute:', router.currentRoute)
+	let q = router.currentRoute.value.query
+	if(q){
+		if(q.q){
+			textFilter.value = q.q
+		}
+		if(q.t){
+			tagFilters.value = q.t.split(',')
+		}
+		if(q.s){
+			sortBy.value = q.s
+		}
+		if(q.reversed){
+			reverseSort.value = Boolean(q.reversed)
+		}
+		if(q.pg){
+			listCurrentPage.value = Number.parseInt(query.pg) || 1
+		}
+		if(q.ps){
+			listPageSize.value = Number.parseInt(query.ps) || 5
+		}
+	}
 	refreshFunc()
 })
 
