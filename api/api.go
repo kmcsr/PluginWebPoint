@@ -131,7 +131,7 @@ func (api *MySqlAPI)GetPluginCounts(opt PluginListOpt)(count PluginCounts, err e
 		"SUM(`label_tool`) AS `count_tool`," +
 		"SUM(`label_management`) AS `count_management`," +
 		"SUM(`label_api`) AS `count_api`" +
-		"FROM plugins WHERE `enabled`=TRUE"
+		"FROM plugins AS a WHERE `enabled`=TRUE"
 
 	cmd := queryCmd
 	args := []any{}
@@ -426,17 +426,29 @@ func parseFilterBy(filter string)(cmd string, args []any){
 		case a == "":
 		case strings.HasPrefix(a, "id:"):
 			a = a[len("id:"):]
-			cmds = append(cmds, "`id` LIKE ?")
+			cmds = append(cmds, "a.`id` LIKE ?")
 			f := "%" + a + "%"
 			args = append(args, f)
+		case strings.HasPrefix(a, "n:"):
+			a = a[len("n:"):]
+			ok = false
+			fallthrough
 		case strings.HasPrefix(a, "name:"):
-			a = a[len("name:"):]
-			cmds = append(cmds, "`name` LIKE ?")
+			if ok {
+				a = a[len("name:"):]
+			}
+			cmds = append(cmds, "a.`name` LIKE ?")
 			f := "%" + a + "%"
 			args = append(args, f)
 		case strings.HasPrefix(a, "@"):
 			a = a[len("@"):]
 			ok = false
+			fallthrough
+		case strings.HasPrefix(a, "a:"):
+			if ok {
+				a = a[len("a:"):]
+				ok = false
+			}
 			fallthrough
 		case strings.HasPrefix(a, "author:"):
 			if ok {
@@ -449,23 +461,29 @@ func parseFilterBy(filter string)(cmd string, args []any){
 				a = a[len("authors:"):]
 			}
 			for _, a := range strings.Split(a, ",") {
-				cmds = append(cmds, "`authors` LIKE ?")
+				cmds = append(cmds, "a.`authors` LIKE ?")
 				f := "%" + a + "%"
 				args = append(args, f)
 			}
-		case strings.HasPrefix(a, "description:"):
-			a = a[len("description:"):]
+		case strings.HasPrefix(a, "d:"):
+			a = a[len("d:"):]
 			ok = false
+			fallthrough
+		case strings.HasPrefix(a, "description:"):
+			if ok {
+				a = a[len("description:"):]
+				ok = false
+			}
 			fallthrough
 		case strings.HasPrefix(a, "desc:"):
 			if ok {
 				a = a[len("desc:"):]
 			}
-			cmds = append(cmds, "`desc` LIKE ?")
+			cmds = append(cmds, "a.`desc` LIKE ?")
 			f := "%" + a + "%"
 			args = append(args, f)
 		default:
-			cmds = append(cmds, "`id` LIKE ? OR `name` LIKE ? OR `authors` LIKE ? OR `desc` LIKE ?")
+			cmds = append(cmds, "a.`id` LIKE ? OR a.`name` LIKE ? OR a.`authors` LIKE ? OR a.`desc` LIKE ?")
 			f := "%" + a + "%"
 			args = append(args, f, f, f, f)
 		}
@@ -492,14 +510,20 @@ func (opt PluginListOpt)appendTagFilter(cmd string, args []any)(string, []any){
 
 func (opt PluginListOpt)appendOrderBy(cmd string, args []any)(string, []any){
 	switch opt.SortBy {
-	case "id", "name", "authors", "lastUpdate", "downloads":
-		cmd += " ORDER BY `" + opt.SortBy + "`"
+	case "id", "name", "authors", "lastUpdate":
+		cmd += " ORDER BY a.`" + opt.SortBy + "`"
 		rev := opt.Reversed
 		switch opt.SortBy {
-		case "lastUpdate", "downloads":
+		case "lastUpdate":
 			rev = !rev
 		}
 		if rev {
+			cmd += " DESC"
+		}
+	case "downloads":
+		cmd += " ORDER BY `" + opt.SortBy + "`"
+		rev := opt.Reversed
+		if !rev {
 			cmd += " DESC"
 		}
 	}

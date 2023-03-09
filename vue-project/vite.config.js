@@ -18,6 +18,7 @@ export default defineConfig(async ({ command, mode }) => {
 				'@': fileURLToPath(new URL('./src', import.meta.url))
 			}
 		},
+		mode: mode,
 		build: {
 			minify: minify,
 		}
