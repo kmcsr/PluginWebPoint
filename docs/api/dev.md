@@ -64,7 +64,7 @@ The charset is `utf8`
 	- Payload _(optional)_:
 		```js
 		{
-			"filterBy": String, // A string, same as URLParams above
+			"filterBy": String, // A string, same as URLParams above with name `filterBy`
 			"tags": [String], // List of string, same as above `tags` but use string list instead string split with comma
 			"sortBy": String, // A string, same as above `sortBy`
 			"reversed": Boolean, // A boolean, same as above `reversed`
