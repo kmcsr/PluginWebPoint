@@ -1,4 +1,6 @@
 
+English | [中文](./dev.zh.md)
+
 # Dev API _(Unstable)_
 
 Development API is the newest API, but it's unstable. It's **NOT backward compatible**, and we won't ensure this doc is match the API that hosted.
