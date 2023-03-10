@@ -1,5 +1,5 @@
 
-[Englisg](./dev.md) | 中文
+[English](./dev.md) | 中文
 
 # Dev API _(Unstable)_
 
