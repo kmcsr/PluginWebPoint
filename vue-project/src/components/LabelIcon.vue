@@ -22,7 +22,7 @@ const icons = {
 
 <template>
 	<div class="label">
-		<component :is="icons[label]" class="label-icon" :fill="fillColor" :size="size"/> {{label || text}}
+		<component :is="icons[label]" class="label-icon" :fill="fillColor" :size="size"/> {{text || label}}
 	</div>
 </template>
 

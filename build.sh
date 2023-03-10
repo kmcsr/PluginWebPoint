@@ -9,7 +9,7 @@ NPM_DIR=vue-project
 function build_web(){
 	cd "$NPM_DIR"
 	if [[ "$DEBUG" == true ]]; then
-		npm run build_dev || return $?
+		NODE_ENV=development npm run build_dev || return $?
 	else
 		npm run build || return $?
 	fi
@@ -22,7 +22,7 @@ function build_web(){
 
 function build_watch(){
 	cd "$NPM_DIR"
-	exec npm run build_watch
+	NODE_ENV=development exec npm run build_watch
 }
 
 function build_app(){

@@ -1,3 +1,40 @@
 {
-	"test": "Hello {msg}!!!"
+	"message": {
+		"search_plugins": "Search plugins...",
+		"searching": "Searching ...",
+		"loading": "Loading ...",
+		"no_plugin": "No plugin was found",
+		"error": "Error: {err}",
+		"no_description": "No description",
+		"downloads": "downloads",
+		"updated_pre": "Updated",
+		"lastUpdate": "Last Update",
+		"synced_from_gh_1": "Synced from",
+		"synced_from_gh_2": "",
+		"totalDownload": "Total download",
+		"repo": "Repository",
+		"main_page": "Main Page",
+		"no_release": "No release file"
+	},
+	"word": {
+		"filters": "Filters",
+		"id": "ID",
+		"name": "Name",
+		"authors": "Authors",
+		"lastUpdate": "Last Update",
+		"downloads": "Downloads",
+		"labels": "Labels",
+		"links": "Links",
+		"dependencies": "Dependencies",
+		"releases": "Release files",
+		"filename": "Filename",
+		"size": "Size",
+		"ago": "ago"
+	},
+	"label": {
+		"information": "Information",
+		"tool": "Tool",
+		"management": "Management",
+		"api": "API"
+	}
 }

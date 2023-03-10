@@ -21,30 +21,33 @@ defineProps({
 				</RouterLink>
 			</div>
 			<div class="authors">
-				by
+				--
 				<span v-for="(author, i) in data.authors">
 					<span v-if="i">,</span>
 					{{author}}
 				</span>
 			</div>
 			<p class="description">
-				<div v-if="data.desc">{{data.desc}}</div>
-				<div v-else><i>No description</i></div>
+				<div v-if="data.desc">{{$i18n.locale == 'zh_cn' ?data.desc_zhCN :data.desc}}</div>
+				<div v-else><i>{{ $t('message.no_description') }}</i></div>
 			</p>
 			<div class="labels">
 				<div class="label-item" v-for="label in Object.entries(data.labels).filter(([k, ok])=>ok).map(([k, _])=>k).sort()">
-					<LabelIcon :label="label" size="1rem"/>
+					<LabelIcon :label="label" :text="$t(`label.${label}`)" size="1rem"/>
 				</div>
 			</div>
 		</div>
 		<div class="plugin-extra">
 			<div>
 				<BriefcaseDownload class="flex-box" size="1.5rem" style="margin-right:0.2rem;"/>
-				<b class="plugin-downloads">{{data.downloads}}</b> downloads
+				<b class="plugin-downloads">{{data.downloads}}</b>
+				{{ $t('message.downloads') }}
 			</div>
 			<div>
 				<UpdateSvg class="flex-box" size="1.5rem" style="margin-right:0.2rem;"/>
-				Updated {{fmtTimestamp(sinceDate(data.lastUpdate), 1)}} ago
+				{{ $t('message.updated_pre') }} 
+				<b class="plugin-updated">{{fmtTimestamp(sinceDate(data.lastUpdate), 1)}}</b>
+				{{ $t('word.ago') }}
 			</div>
 		</div>
 	</article>
@@ -85,10 +88,14 @@ defineProps({
 	margin-bottom: 0.5rem;
 }
 
-.plugin-downloads {
+.plugin-downloads, .plugin-updated {
 	font-size: 1.25rem;
 	font-weight: 700;
 	margin-right: 0.3rem;
+}
+
+.plugin-updated {
+	margin-left: 0.3rem;
 }
 
 .name {

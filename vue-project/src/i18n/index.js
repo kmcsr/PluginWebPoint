@@ -1,23 +1,23 @@
 import { nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 
-export const SUPPORT_LOCALES = ['en', 'zh-cn']
-
 const defaultOptions = { locale: 'en', fallbackLocale: 'en' }
 
-export function setupI18n(options){
-	if(!options){
-		options = defaultOptions
-	}else{
-		for(let [v, k] in Object.entries(defaultOptions)){
-			if(options[k] === undefined){
-				options[k] = v
-			}
+var i18n = null;
+
+export async function setupI18n(){
+	const _i18n = createI18n({
+		locale: 'en_us',
+		fallbackLocale: 'en_us',
+		messages: {
+			'en_us': await import('../i18n/en_us.json'),
+			'zh_cn': await import('../i18n/zh_cn.json'),
 		}
-	}
-	const i18n = createI18n(options)
-	setI18nLanguage(i18n, options.locale)
-	return i18n
+	})
+	i18n = _i18n
+	console.debug('i18n:', i18n)
+	setI18nLanguage(_i18n, 'en_us')
+	return _i18n
 }
 
 export function setI18nLanguage(i18n, locale){
@@ -33,4 +33,8 @@ export async function loadLocaleMessages(i18n, locale){
 	const messages = await import(`../i18n/${locale}.json`)
 	i18n.global.setLocaleMessage(locale, messages.default)
 	return nextTick()
+}
+
+export function getI18n(){
+	return i18n
 }

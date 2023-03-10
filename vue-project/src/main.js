@@ -8,24 +8,15 @@ import './assets/main.css'
 
 const production = process.env.NODE_ENV === 'production';
 
-console.debug('process-env-NODE-ENV:', process.env.NODE_ENV)
-console.debug('import-meta-env-DEV:', import.meta.env.DEV)
-
 if(!production){
-	console.debug('mode:', dev)
+	console.debug('mode:', process.env.NODE_ENV)
 }
 
 (async function(app){
 
 	app.config.globalProperties.$apiPrefix = '/dev'
 
-	const i18n = setupI18n({
-		messages: {
-			'en': await import('./i18n/en_us.json'),
-		}
-	})
-
-	app.use(i18n)
+	app.use(await setupI18n())
 
 	app.use(router)
 

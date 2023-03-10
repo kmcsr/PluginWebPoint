@@ -89,51 +89,52 @@ onMounted(() => {
 			</header>
 			<div class="flex-box">
 				<UpdateSvg class="flex-box" size="1.5rem" style="margin-right:0.2rem;"/>
-				Last Update:&nbsp;
-				<span v-if="data.lastUpdate">{{fmtTimestamp(sinceDate(data.lastUpdate), 1)}} ago</span>
-				<span v-else><i>Unknown</i></span>
+				{{ $t('message.lastUpdate') }}:&nbsp;
+				<span v-if="data.lastUpdate">{{fmtTimestamp(sinceDate(data.lastUpdate), 1)}} {{ $t('word.ago') }}</span>
+				<span v-else><i>{{ $t('word.unknown') }}</i></span>
 			</div>
 			<div v-if="data.github_sync" class="flex-box">
 				<SyncSvg class="flex-box" size="1.5rem" style="margin-right:0.2rem;"/>
-				Synced from
+				{{ $t('message.synced_from_gh_1') }}
 				<Github class="flex-box" style="margin: 0 0.1rem;" size="1rem"/>
-				Github:&nbsp;
-				<span v-if="data.last_sync">{{fmtTimestamp(sinceDate(data.last_sync), 1)}} ago</span>
-				<span v-else><i>Unknown</i></span>
+				Github
+				{{ $t('message.synced_from_gh_2') }}:&nbsp;
+				<span v-if="data.last_sync">{{fmtTimestamp(sinceDate(data.last_sync), 1)}} {{ $t('word.ago') }}</span>
+				<span v-else><i>{{ $t('word.unknown') }}</i></span>
 			</div>
-			<h2>Labels:</h2>
+			<h2>{{ $t('word.labels') }}:</h2>
 			<ul class="labels">
 				<li v-for="label in Object.entries(data.labels).filter(([k, ok])=>ok).map(([k, _])=>k).sort()">
-					<LabelIcon :label="label" size="1rem"/>
+					<LabelIcon :label="label" :text="$t(`label.${label}`)" size="1rem"/>
 				</li>
 			</ul>
 			<h3>
 				<div class="flex-box">
 					<BriefcaseDownload class="flex-box" size="1.5rem"/>
-					Total Download: {{data.downloads}}
+					{{ $t('message.totalDownload') }}: {{data.downloads}}
 				</div>
 			</h3>
 			<h3>
 				<div class="flex-box">
 					<LinkBox class="flex-box" size="1.5rem"/>
-					Links:
+					{{ $t('word.links') }}:
 				</div>
 			</h3>
 			<ul>
 				<li>
-					<a :href="data.repo">Repo</a>
+					<a :href="data.repo">{{ $t('message.repo') }}</a>
 				</li>
 				<li>
-					<a :href="data.link">Main page</a>
+					<a :href="data.link">{{ $t('message.main_page') }}</a>
 				</li>
 			</ul>
 			<p class="description">
 				<pre style="white-space:break-spaces;">
-					<div v-if="data.desc">{{data.desc}}</div>
-					<div v-else><i>No description</i></div>
+					<div v-if="data.desc">{{$i18n.locale === 'zh_cn' ?data.desc_zhCN :data.desc}}</div>
+					<div v-else><i>{{ $t('message.no_description') }}</i></div>
 				</pre>
 			</p>
-			<h2>Dependencies:</h2>
+			<h2>{{ $t('word.dependencies') }}:</h2>
 			<table>
 				<thead>
 					<th>ID</th>
@@ -150,12 +151,12 @@ onMounted(() => {
 					</tr>
 				</tbody>
 			</table>
-			<h2>Releases:</h2>
+			<h2>{{ $t('word.releases') }}:</h2>
 			<table v-if="data.releases">
 				<thead>
-					<th>File</th>
-					<th>Size</th>
-					<th>Downloads</th>
+					<th>{{ $t('word.filename') }}</th>
+					<th>{{ $t('word.size') }}</th>
+					<th>{{ $t('word.downloads') }}</th>
 				</thead>
 				<tbody>
 					<tr v-for="r in data.releases.reverse()">
@@ -169,13 +170,13 @@ onMounted(() => {
 					</tr>
 				</tbody>
 			</table>
-			<div v-else><i>No release</i></div>
+			<div v-else><i>{{ $t('message.no_release') }}</i></div>
 		</div>
 		<div v-else-if="errorText" class="error-box">
 			{{errorText}}
 		</div>
 		<div v-else>
-			Loading...
+			{{ $t('message.loading') }}
 		</div>
 	</main>
 </template>

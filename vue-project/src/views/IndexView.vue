@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
 import { NPagination } from 'naive-ui'
-import { usePagination } from 'vue-request'
+import { useRequest, usePagination } from 'vue-request'
 import TextSearch from 'vue-material-design-icons/TextSearch.vue'
 import Filter from 'vue-material-design-icons/Filter.vue'
 import SortAscending from 'vue-material-design-icons/SortAscending.vue'
@@ -21,70 +21,24 @@ const tagFilters = ref([])
 const sortBy = ref('downloads')
 const reverseSort = ref(false)
 
-const {
-	data,
-	loading: searching,
-	run: refreshPluginList,
-	current: listCurrentPage,
-	totalPage,
-	pageSize: listPageSize,
-} = usePagination(() => {
-	return Promise.all([
-		getPluginList(), getPluginCounts()
-	]).then(([res1, res2]) => {
-		if(res1 && res2){
-			res1.total = res2.total
-			return res1
-		}
-	})
-}, {
-	errorRetryCount: 10,
-	debounceInterval: 700,
-	manual: true,
-	pagination: {
-		currentKey: 'page',
-		pageSizeKey: 'limit',
-		totalKey: 'total',
-	},
-})
-
-function getPluginList(){
-	let query = {}
-	if(textFilter.value.length){
-		query.q = textFilter.value
+async function getPluginList(){
+	let counts = (await getPluginCounts()).total
+	if((listCurrentPage.value - 1) * listPageSize.value > counts){
+		listCurrentPage.value = Math.ceil(counts / listPageSize.value) || 1
 	}
-	if(tagFilters.value.length){
-		query.t = tagFilters.value.join(',')
+	if(!counts){
+		return []
 	}
-	if(sortBy.value.length){
-		query.s = sortBy.value
-	}
-	if(reverseSort.value){
-		query.reversed = 'true'
-	}
-	if(listCurrentPage.value > 1){
-		query.pg = listCurrentPage.value
-		query.ps = listPageSize.value
-	}
-	if(router.currentRoute.value.query !== query){
-		router.push({ query: query })
-	}
-	return axios.get('/dev/plugins', {
+	let res = await axios.get('/dev/plugins', {
 		params: {
 			filterBy: textFilter.value,
-			tags: tagFilters.value.join(','),
+			tags: tagFilters.value.sort().join(','),
 			sortBy: sortBy.value,
 			reversed: reverseSort.value,
 			offset: (listCurrentPage.value - 1) * listPageSize.value,
 			limit: listPageSize.value,
 		}
 	}).then((res) => {
-		console.debug('response for /plugins:', res)
-		if(res.data.status !== 'ok'){
-			let err = new Error('Response status is not ok')
-			err.response = res
-			throw err
-		}
 		return res.data.data
 	}).catch((error) => {
 		console.error('Error when getting plugins:', error)
@@ -95,10 +49,12 @@ function getPluginList(){
 		}
 		throw error // keep pop error
 	})
+	res.total = counts
+	return res
 }
 
-function getPluginCounts(){
-	return axios.get('/dev/plugins/count', {
+async function getPluginCounts(){
+	return await axios.get('/dev/plugins/count', {
 		params: {
 			filterBy: textFilter.value,
 			tags: tagFilters.value.join(','),
@@ -118,16 +74,69 @@ function getPluginCounts(){
 	})
 }
 
-async function refreshFunc(){
+const {
+	data,
+	loading: searching,
+	current: listCurrentPage,
+	pageSize: listPageSize,
+	totalPage,
+	run: refreshNoDelay,
+} = usePagination(() => {
+	errorText.value = null
+	let query = {}
+	if(textFilter.value.length){
+		query.q = textFilter.value
+	}
+	if(tagFilters.value.length){
+		query.t = tagFilters.value.sort().join(',')
+	}
+	if(sortBy.value.length){
+		query.s = sortBy.value
+	}
+	if(reverseSort.value){
+		query.reversed = 'true'
+	}
+	if(listCurrentPage.value > 1){
+		query.pg = listCurrentPage.value
+		query.ps = listPageSize.value
+	}
+	if(router.currentRoute.value.query !== query){
+		router.push({ query: query })
+	}
+	return getPluginList()
+}, {
+	errorRetryCount: 10,
+	// debounceInterval: 5,
+	manual: true,
+	pagination: {
+		currentKey: 'page',
+		pageSizeKey: 'limit',
+		totalKey: 'total',
+	},
+	defaultParams: [
+		{
+			page: 1,
+			limit: 5,
+		}
+	]
+})
+
+const {
+	run: refreshPluginList,
+} = useRequest(refreshNoDelay, {
+	debounceInterval: 700,
+})
+
+function refreshFunc(){
 	errorText.value = null
 	searching.value = true
 	refreshPluginList()
 }
 
 watch(textFilter, refreshFunc)
-watch(tagFilters, refreshFunc)
-watch(sortBy, refreshFunc)
-watch(reverseSort, refreshFunc)
+watch(tagFilters, refreshNoDelay)
+watch(sortBy, refreshNoDelay)
+watch(reverseSort, refreshNoDelay)
 
 const list = computed(() =>  (data.value) || [])
 
@@ -145,6 +154,33 @@ function onScroll(event){
 	}
 }
 
+function onQueryChange(value){
+	let q = value.query
+	if(q){
+		console.debug('value.query:', q)
+		if((q.q || '') !== textFilter.value){
+			textFilter.value = q.q || ''
+		}
+		if((q.t || '') !== tagFilters.value.sort().join(',')){
+			tagFilters.value = q.t ?q.t.split(',') :[]
+		}
+		if((q.s || '') !== sortBy.value){
+			sortBy.value = q.s || ''
+		}
+		if((q.reversed === 'true') !== reverseSort.value){
+			reverseSort.value = q.reversed === 'true'
+		}
+		if((q.pg || 1) != listCurrentPage.value){
+			listCurrentPage.value = Number.parseInt(q.pg) || 1
+		}
+		if((q.ps || 5) != listPageSize.value){
+			listPageSize.value = Number.parseInt(q.ps) || 5
+		}
+	}
+}
+
+watch(router.currentRoute, onQueryChange)
+
 onMounted(() => {
 	window.addEventListener('scroll', onScroll)
 	searching.value = true
@@ -161,7 +197,7 @@ onMounted(() => {
 			sortBy.value = q.s
 		}
 		if(q.reversed){
-			reverseSort.value = Boolean(q.reversed)
+			reverseSort.value = q.reversed === 'true'
 		}
 		if(q.pg){
 			listCurrentPage.value = Number.parseInt(q.pg) || 1
@@ -170,7 +206,7 @@ onMounted(() => {
 			listPageSize.value = Number.parseInt(q.ps) || 5
 		}
 	}
-	refreshFunc()
+	refreshNoDelay()
 })
 
 onUnmounted(() => {
@@ -183,29 +219,29 @@ onUnmounted(() => {
 	<div class="plugin-list" ref="pluginList">
 		<KeepAlive>
 			<div>
-				<div class="plugin-top-pages">
-					<NPagination
-						v-model:page="listCurrentPage"
-						v-model:page-size="listPageSize"
-						:page-count="totalPage"
-						:page-slot="6"
-						:page-sizes="[5, 15, 50, 100]"
-						show-size-picker
-					/>
-				</div>
 				<TransitionGroup name="pbody" tag="div">
 					<div id="plugin-filter-teleport-slot"></div>
+					<div class="plugin-top-pages">
+						<NPagination
+							v-model:page="listCurrentPage"
+							v-model:page-size="listPageSize"
+							:page-count="totalPage"
+							:page-slot="6"
+							:page-sizes="[5, 15, 50, 100]"
+							show-size-picker
+						/>
+					</div>
 					<div v-if="searching" style="width:100%;min-height:6rem;display:flex;flex-direction:row;justify-content:center;align-items:center;">
-						<b>Searching...</b>
+						<b>{{ $t('message.searching') }}</b>
 					</div>
 					<div v-else-if="errorText" class="error-box">
-						{{errorText}}
+						{{ $t('message.error', { err: errorText }) }}
 					</div>
 					<TransitionGroup v-else-if="list.length" class="plugin-list-body" name="plist" tag="div">
 						<PluginItem  v-for="data in list" :key="data.id" :data="data"/>
 					</TransitionGroup>
 					<div v-else style="width:100%;min-height:6rem;display:flex;flex-direction:row;justify-content:center;align-items:center;">
-						<b>No plugin was found</b>
+						<b>{{ $t('message.no_plugin') }}</b>
 					</div>
 				</TransitionGroup>
 				<div class="plugin-bottom-pages">
@@ -225,13 +261,13 @@ onUnmounted(() => {
 				<div class="plugin-list-searchbox">
 					<TextSearch class="flex-box plugin-list-search-icon" size="1.5rem"/>
 					<input class="plugin-search-input" type="search" v-model="textFilter"
-						placeholder="Search plugins..." />
+						:placeholder="$t('message.search_plugins')" />
 				</div>
 				<div class="plugin-list-filter-box">
 					<div class="plugin-filters-button">
 						<button @click="showFilters=!showFilters">
 							<Filter class="flex-box" size="1.5rem"/>
-							Filters
+							{{ $t('word.filters') }}
 						</button>
 					</div>
 					<div class="plugin-sorts">
@@ -239,11 +275,11 @@ onUnmounted(() => {
 						<component :is="reverseSort?SortDescending:SortAscending"
 							class="flex-box plugin-sorts-icon" size="1.5rem" @click="reverseSort=!reverseSort"/>
 						<select id="plugin-sorts-options" v-model="sortBy">
-							<option value="downloads">Downloads</option>
-							<option value="lastUpdate">Last Update</option>
-							<option value="name">Name</option>
-							<option value="id">ID</option>
-							<option value="authors">Authors</option>
+							<option value="downloads">{{ $t('word.downloads') }}</option>
+							<option value="lastUpdate">{{ $t('word.lastUpdate') }}</option>
+							<option value="name">{{ $t('word.name') }}</option>
+							<option value="id">{{ $t('word.id') }}</option>
+							<option value="authors">{{ $t('word.authors') }}</option>
 						</select>
 					</div>
 				</div>
@@ -253,25 +289,25 @@ onUnmounted(() => {
 					<div>
 						<input type="checkbox" id="plugin-filters-information" name="scales" value="information" v-model="tagFilters">
 						<label for="plugin-filters-information">
-							<LabelIcon label="information" text="Information" size="1rem"/>
+							<LabelIcon label="information" :text="$t(`label.information`)" size="1rem"/>
 						</label>
 					</div>
 					<div>
 						<input type="checkbox" id="plugin-filters-tool" name="scales" value="tool" v-model="tagFilters">
 						<label for="plugin-filters-tool">
-							<LabelIcon label="tool" text="Tool" class="flex-box" size="1rem"/>
+							<LabelIcon label="tool" :text="$t(`label.tool`)" class="flex-box" size="1rem"/>
 						</label>
 					</div>
 					<div>
 						<input type="checkbox" id="plugin-filters-management" name="scales" value="management" v-model="tagFilters">
 						<label for="plugin-filters-management">
-							<LabelIcon label="management" text="Management" class="flex-box" size="1rem"/>
+							<LabelIcon label="management" :text="$t(`label.management`)" class="flex-box" size="1rem"/>
 						</label>
 					</div>
 					<div>
 						<input type="checkbox" id="plugin-filters-api" name="scales" value="api" v-model="tagFilters">
 						<label for="plugin-filters-api">
-							<LabelIcon label="api" text="API" class="flex-box" size="1rem"/>
+							<LabelIcon label="api" :text="$t(`label.api`)" class="flex-box" size="1rem"/>
 						</label>
 					</div>
 				</div>
@@ -288,7 +324,8 @@ onUnmounted(() => {
 	flex-direction: column;
 	max-width: 100%;
 	width: 53rem;
-	margin: 0.6rem;
+	margin: 1.6rem;
+	margin-top: 0;
 	padding-top: 0;
 	border-radius: 0.2rem;
 	background-color: var(--color-background);

@@ -54,7 +54,7 @@ type PluginInfo struct {
 	Version      Version      `json:"version"`
 	Authors      []string     `json:"authors"`
 	Desc         string       `json:"desc,omitempty"`
-	Desc_zhCN    string       `json:"desc_zhcn,omitempty"`
+	Desc_zhCN    string       `json:"desc_zhCN,omitempty"`
 	CreateAt     time.Time    `json:"createAt"`
 	LastUpdate   time.Time    `json:"lastUpdate"`
 	Repo         string       `json:"repo,omitempty"`
@@ -162,7 +162,7 @@ func (api *MySqlAPI)GetPluginCounts(opt PluginListOpt)(count PluginCounts, err e
 }
 
 func (api *MySqlAPI)GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err error){
-	const queryCmd = "SELECT a.`id`,a.`name`,a.`version`,a.`authors`,a.`desc`," +
+	const queryCmd = "SELECT a.`id`,a.`name`,a.`version`,a.`authors`,a.`desc`,a.`desc_zhCN`," +
 		"CONVERT_TZ(a.`createAt`,@@session.time_zone,'+00:00') AS `utc_createAt`," +
 		"CONVERT_TZ(a.`lastUpdate`,@@session.time_zone,'+00:00') AS `utc_lastUpdate`," +
 		"`label_information`,`label_tool`,`label_management`,`label_api`," +
@@ -199,7 +199,7 @@ func (api *MySqlAPI)GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err er
 			ghLastSync sql.NullTime
 			downloads sql.NullInt64
 		)
-		if err = rows.Scan(&info.Id, &info.Name, &info.Version, &authors, &info.Desc, &info.CreateAt, &info.LastUpdate,
+		if err = rows.Scan(&info.Id, &info.Name, &info.Version, &authors, &info.Desc, &info.Desc_zhCN, &info.CreateAt, &info.LastUpdate,
 			&info.Labels.Information, &info.Labels.Tool, &info.Labels.Management, &info.Labels.Api,
 			&info.GithubSync, &ghLastSync, &downloads); err != nil {
 			return

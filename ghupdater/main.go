@@ -234,10 +234,11 @@ func ExecTx(tx *sql.Tx, cmd string, args ...any)(res sql.Result, err error){
 }
 
 func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err error){
-	const insertCmd = "INSERT INTO plugins (`id`,`name`,`enabled`,`version`,`authors`,`desc`,`desc_zhCN`,`repo`,`link`," +
+	const insertCmd = "INSERT INTO plugins (`id`,`name`,`enabled`,`version`,`authors`,`desc`,`desc_zhCN`," +
+		"`repo`,`repo_branch`,`repo_subdir`,`link`," +
 		"`label_information`,`label_tool`,`label_management`,`label_api`," +
 		"`createAt`,`lastUpdate`,`github_sync`,`last_sync`)" +
-		"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,TRUE,?)"
+		"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,TRUE,?)"
 	const updateCmd = "UPDATE plugins SET " +
 			"`name`=?," +
 			"`enabled`=?," +
@@ -246,6 +247,8 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 			"`desc`=?," +
 			"`desc_zhCN`=?," +
 			"`repo`=?," +
+			"`repo_branch`=?," +
+			"`repo_subdir`=?," +
 			"`link`=?," +
 			"`label_information`=?," +
 			"`label_tool`=?," +
@@ -309,7 +312,8 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 	if flag.Valid {
 		loger.Infof("[%s] Updating metadata", info.Id)
 		if _, err = ExecTx(tx, updateCmd, meta.Name, !info.Disable, meta.Version,
-			strings.Join(meta.Authors, ","), desc, desc_zhCN, info.Repo, link,
+			strings.Join(meta.Authors, ","), desc, desc_zhCN,
+			info.Repo, info.Branch, info.RelatedPath, link,
 			info.Labels.HasInformation(), info.Labels.HasTool(), info.Labels.HasManagement(), info.Labels.HasAPI(),
 			now, info.Id); err != nil {
 			return
@@ -320,7 +324,8 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 	}else{
 		loger.Infof("[%s] Insert into database", info.Id)
 		if _, err = ExecTx(tx, insertCmd, info.Id, meta.Name, !info.Disable, meta.Version,
-			strings.Join(meta.Authors, ","), desc, desc_zhCN, info.Repo, link,
+			strings.Join(meta.Authors, ","), desc, desc_zhCN,
+			info.Repo, info.Branch, info.RelatedPath, link,
 			info.Labels.HasInformation(), info.Labels.HasTool(), info.Labels.HasManagement(), info.Labels.HasAPI(),
 			now, now, now); err != nil {
 			return

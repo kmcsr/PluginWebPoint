@@ -1,0 +1,40 @@
+{
+	"message": {
+		"search_plugins": "查询插件...",
+		"searching": "搜索中 ...",
+		"loading": "加载中 ...",
+		"no_plugin": "未找到插件",
+		"error": "错误: {err}",
+		"no_description": "没有描述 :(",
+		"downloads": "次下载",
+		"updated_pre": "在",
+		"lastUpdate": "上次更新",
+		"synced_from_gh_1": "上次",
+		"synced_from_gh_2": "同步时间",
+		"totalDownload": "下载总数",
+		"repo": "仓库",
+		"main_page": "主页",
+		"no_release": "没有已发布的文件"
+	},
+	"word": {
+		"filters": "过滤器",
+		"id": "ID",
+		"name": "名称",
+		"authors": "作者",
+		"lastUpdate": "上次更新",
+		"downloads": "下载",
+		"labels": "标签",
+		"links": "链接",
+		"dependencies": "依赖",
+		"releases": "发布文件",
+		"file": "文件名",
+		"size": "大小",
+		"ago": "前"
+	},
+	"label": {
+		"information": "信息",
+		"tool": "工具",
+		"management": "管理",
+		"api": "API"
+	}
+}
