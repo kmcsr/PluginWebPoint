@@ -11,10 +11,10 @@
 
 ## 错误请求
 
-- 若处理请求时发生了错误, 会返回以下结构
+- 若处理请求时发生了错误, 会返回以下响应体
 	- StatusCode: `4xx` (不应该为 `200`)
 	- Content-Type: `application/json`
-	- Payload:
+	- 负载:
 		```js
 		{
 			"status": "error", // 应该永远为 "error" 字符串常量
@@ -25,15 +25,15 @@
 
 ## `/`
 
-- Description:
+- 描述:
 	此入口点仅用于检查该API是否可用
-- Request:
+- 请求:
 	- Method: `GET`
-	- Payload: *None*
-- Response:
+	- 负载: *None*
+- 响应:
 	- StatusCode: `200` OK
 	- Content-Type: `application/json`
-	- Payload:
+	- 负载:
 		```js
 		{
 			"status": "ok",
@@ -44,9 +44,9 @@
 
 ## `/plugins/`
 
-- Description:
+- 描述:
 	使用指定的过滤器从数据库中获取插件列表, 并返回排序后的数据
-- Request:
+- 请求:
 	- Method: `GET`
 	- URLParams _(可选, 优先级高于json负载)_:
 		- `filterBy`: 文字过滤器, 支持以下几种前缀:
@@ -74,10 +74,10 @@
 			"limit": Number, // 一个正整数, 同上 `limit`
 		}
 		```
-- Response:
+- 响应:
 	- StatusCode: `200` OK
 	- Content-Type: `application/json`
-	- Payload:
+	- 负载:
 		```js
 		{
 			"status": "ok",
@@ -88,16 +88,16 @@
 
 ## `/plugins/count`
 
-- Description:
+- 描述:
 	使用过滤器获取插件数量
-- Request:
+- 请求:
 	- Method: `GET`
 	- URLParams: 同上 `/plugins`
-	- Payload: 同上 `/plugins`
-- Response:
+	- 负载: 同上 `/plugins`
+- 响应:
 	- StatusCode: `200` OK
 	- Content-Type: `application/json`
-	- Payload:
+	- 负载:
 		```js
 		{
 			"status": "ok",
@@ -113,15 +113,15 @@
 
 ## `/plugin/{id:string}/info`
 
-- Description:
+- 描述:
 	使用 `id` 获取指定插件的数据
-- Request:
+- 请求:
 	- Method: `GET`
-	- Payload: *None*
-- Response:
+	- 负载: *None*
+- 响应:
 	- StatusCode: `200` OK, `404` if plugin not found
 	- Content-Type: `application/json`
-	- Payload:
+	- 负载:
 		```js
 		{
 			"status": "ok",
@@ -154,15 +154,15 @@
 
 ## `/plugin/{id:string}/releases`
 
-- Description:
+- 描述:
 	获取插件发布信息
-- Request:
+- 请求:
 	- Method: `GET`
-	- Payload: *None*
-- Response:
+	- 负载: *None*
+- 响应:
 	- StatusCode: `200` OK, `404` if plugin not found
 	- Content-Type: `application/json`
-	- Payload:
+	- 负载:
 		```js
 		{
 			"status": "ok",
@@ -174,15 +174,15 @@
 
 ## `/plugin/{id:string}/release/{tag:string}/`
 
-- Description:
+- 描述:
 	使用`tag`获取插件指定发布信息
-- Request:
+- 请求:
 	- Method: `GET`
-	- Payload: *None*
-- Response:
+	- 负载: *None*
+- 响应:
 	- StatusCode: `200` OK, `404` if release not found
 	- Content-Type: `application/json`
-	- Payload:
+	- 负载:
 		```js
 		{
 			"status": "ok",
@@ -202,13 +202,13 @@
 
 ## `/plugin/{id:string}/release/{tag:string}/asset`
 
-- Description:
+- 描述:
 	下载指定的插件发布文件
-- Request:
+- 请求:
 	- Method: `GET`
-	- Payload: *None*
-- Response:
+	- 负载: *None*
+- 响应:
 	- StatusCode: `200` OK
 	- Content-Type: `*/*`
-	- Payload: The asset file
+	- 负载: 该发布文件
 
