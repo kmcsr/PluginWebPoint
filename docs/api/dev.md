@@ -1,7 +1,7 @@
 
 # Dev API _(Unstable)_
 
-Development API is the latest API, but it's unstable. It's **NOT backward compatible**, and we won't ensure this doc is match the API.
+Development API is the newest API, but it's unstable. It's **NOT backward compatible**, and we won't ensure this doc is match the API that hosted.
 
 The prefix of dev API is `/dev/`, you should add this prefix to every routes below if there are no specific comment.
 
