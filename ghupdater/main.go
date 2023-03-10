@@ -234,9 +234,25 @@ func ExecTx(tx *sql.Tx, cmd string, args ...any)(res sql.Result, err error){
 }
 
 func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err error){
-	const insertCmd = "REPLACE INTO plugins (`id`,`name`,`enabled`,`version`,`authors`,`desc`,`desc_zhCN`,`repo`,`link`," +
-		"`label_information`,`label_tool`,`label_management`,`label_api`,`github_sync`,`last_sync`)" +
-		"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,TRUE,?)"
+	const insertCmd = "INSERT INTO plugins (`id`,`name`,`enabled`,`version`,`authors`,`desc`,`desc_zhCN`,`repo`,`link`," +
+		"`label_information`,`label_tool`,`label_management`,`label_api`," +
+		"`createAt`,`lastUpdate`,`github_sync`,`last_sync`)" +
+		"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,TRUE,?)"
+	const updateCmd = "UPDATE plugins SET " +
+			"`name`=?," +
+			"`enabled`=?," +
+			"`version`=?," +
+			"`authors`=?," +
+			"`desc`=?," +
+			"`desc_zhCN`=?," +
+			"`repo`=?," +
+			"`link`=?," +
+			"`label_information`=?," +
+			"`label_tool`=?," +
+			"`label_management`=?," +
+			"`label_api`=?," +
+			"`last_sync`=? " +
+		"WHERE `id`=?"
 	const removeDepenceCmd = "DELETE FROM plugin_dependencies WHERE `id`=?"
 	const insertDepenceCmd = "INSERT INTO plugin_dependencies (`id`,`target`,`tag`)" +
 		"VALUES (?,?,?)"
@@ -276,8 +292,7 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 	defer conn.Close()
 
 	var flag sql.NullBool
-	if err = conn.QueryRowContext(ctx,
-		"SELECT 1 FROM plugins WHERE `id`=? AND `github_sync`=TRUE LIMIT 1", info.Id).Scan(&flag); err != nil {
+	if err = conn.QueryRowContext(ctx, "SELECT `github_sync` FROM plugins WHERE `id`=?", info.Id).Scan(&flag); err != nil && err != sql.ErrNoRows {
 		return
 	}
 	if flag.Valid && !flag.Bool {
@@ -291,15 +306,25 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 	}
 	defer tx.Rollback()
 
-	loger.Infof("Insert into database for %s", info.Id)
-	if _, err = ExecTx(tx, insertCmd, info.Id, meta.Name, !info.Disable, meta.Version,
-		strings.Join(meta.Authors, ","), desc, desc_zhCN, info.Repo, link,
-		info.Labels.HasInformation(), info.Labels.HasTool(), info.Labels.HasManagement(), info.Labels.HasAPI(),
-		now); err != nil {
-		return
-	}
-	if _, err = ExecTx(tx, removeDepenceCmd, info.Id); err != nil {
-		return
+	if flag.Valid {
+		loger.Infof("[%s] Updating metadata", info.Id)
+		if _, err = ExecTx(tx, updateCmd, meta.Name, !info.Disable, meta.Version,
+			strings.Join(meta.Authors, ","), desc, desc_zhCN, info.Repo, link,
+			info.Labels.HasInformation(), info.Labels.HasTool(), info.Labels.HasManagement(), info.Labels.HasAPI(),
+			now, info.Id); err != nil {
+			return
+		}
+		if _, err = ExecTx(tx, removeDepenceCmd, info.Id); err != nil {
+			return
+		}
+	}else{
+		loger.Infof("[%s] Insert into database", info.Id)
+		if _, err = ExecTx(tx, insertCmd, info.Id, meta.Name, !info.Disable, meta.Version,
+			strings.Join(meta.Authors, ","), desc, desc_zhCN, info.Repo, link,
+			info.Labels.HasInformation(), info.Labels.HasTool(), info.Labels.HasManagement(), info.Labels.HasAPI(),
+			now, now, now); err != nil {
+			return
+		}
 	}
 	for id, cond := range meta.Deps {
 		if _, err = ExecTx(tx, insertDepenceCmd, info.Id, id, cond); err != nil {
@@ -373,7 +398,7 @@ func main(){
 				}
 				releases, err := GetPluginReleaseJson(info.Id)
 				if err = updateSql(info, meta, releases); err != nil {
-					loger.Errorf("[%s] Cannot update to database: %v", info.Id, err)
+					loger.Errorf("[%s] Cannot sync to database: %v", info.Id, err)
 				}
 			}(info)
 		}
