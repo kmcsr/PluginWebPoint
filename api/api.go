@@ -5,10 +5,13 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +22,7 @@ import (
 
 var (
 	BASE_DIR string = "/opt/pwebpoint"
+	PLUGIN_DIR string = filepath.Join(BASE_DIR, "plugin")
 	CACHE_DIR string = filepath.Join(BASE_DIR, "caches")
 	PLUGIN_CACHE_DIR string = filepath.Join(CACHE_DIR, "plugin")
 )
@@ -58,11 +62,15 @@ type PluginInfo struct {
 	CreateAt     time.Time    `json:"createAt"`
 	LastUpdate   time.Time    `json:"lastUpdate"`
 	Repo         string       `json:"repo,omitempty"`
+	RepoBranch   string       `json:"repoBranch,omitempty"`
+	RepoSubdir   string       `json:"repoSubdir,omitempty"`
 	Link         string       `json:"link,omitempty"`
 	Labels       PluginLabels `json:"labels"`
 	Downloads    int64        `json:"downloads"`
-	Dependencies DependMap    `json:"dependencies"`
+	Dependencies DependMap    `json:"dependencies,omitempty"`
 	GithubSync   bool         `json:"github_sync"`
+	GhRepoOwner  string       `json:"ghRepoOwner,omitempty"`
+	GhRepoName   string       `json:"ghRepoName,omitempty"`
 	LastSync     *time.Time   `json:"last_sync,omitempty"`
 }
 
@@ -91,6 +99,7 @@ type API interface {
 	GetPluginCounts(opt PluginListOpt)(count PluginCounts, err error)
 	GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err error)
 	GetPluginInfo(id string)(info *PluginInfo, err error)
+	GetPluginReadme(id string)(data []byte, prefix string, err error)
 	GetPluginReleases(id string)(releases []*PluginRelease, err error)
 	GetPluginRelease(id string, tag Version)(release *PluginRelease, err error)
 	GetPluginReleaseAsset(id string, tag Version, filename string)(rc io.ReadSeekCloser, modTime time.Time, err error)
@@ -223,8 +232,9 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 	const queryCmd = "SELECT a.`name`,a.`version`,a.`authors`,a.`desc`,a.`desc_zhCN`," +
 		"CONVERT_TZ(a.`createAt`,@@session.time_zone,'+00:00') AS `utc_createAt`," +
 		"CONVERT_TZ(a.`lastUpdate`,@@session.time_zone,'+00:00') AS `utc_lastUpdate`," +
-		"a.`repo`,a.`link`,`label_information`,`label_tool`,`label_management`,`label_api`," +
-		"`github_sync`," +
+		"a.`repo`,a.`repo_branch`,a.`repo_subdir`,a.`link`," +
+		"`label_information`,`label_tool`,`label_management`,`label_api`," +
+		"`github_sync`,`ghRepoOwner`,`ghRepoName`," +
 		"CONVERT_TZ(`last_sync`,@@session.time_zone,'+00:00') AS `utc_last_sync`," +
 		"SUM(b.`downloads`) AS `downloads`" +
 		" FROM plugins as a LEFT JOIN plugin_releases as b" +
@@ -245,9 +255,9 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 	info = new(PluginInfo)
 	if err = api.DB.QueryRowContext(ctx, queryCmd, id).
 		Scan(&info.Name, &info.Version, &authors, &info.Desc, &info.Desc_zhCN, &info.CreateAt, &info.LastUpdate,
-		&info.Repo, &info.Link,
+		&info.Repo, &info.RepoBranch, &info.RepoSubdir, &info.Link,
 		&info.Labels.Information, &info.Labels.Tool, &info.Labels.Management, &info.Labels.Api,
-		&info.GithubSync, &ghLastSync, &downloads); err != nil {
+		&info.GithubSync, &info.GhRepoOwner, &info.GhRepoName, &ghLastSync, &downloads); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
 		}
@@ -261,7 +271,7 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 		info.Downloads = downloads.Int64
 	}
 	info.Authors = strings.Split(authors, ",")
-	info.Dependencies = make(DependMap, 5)
+	info.Dependencies = make(DependMap, 3)
 	var rows *sql.Rows
 	if rows, err = api.DB.QueryContext(ctx, queryDependenciesCmd, id); err != nil {
 		return
@@ -283,11 +293,72 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 	return
 }
 
+func (api *MySqlAPI)GetPluginReadme(id string)(data []byte, prefix string, err error){
+	var info *PluginInfo
+	if info, err = api.GetPluginInfo(id); err != nil {
+		return
+	}
+	prefix = info.Link
+	if !info.GithubSync {
+		filename := filepath.Join(PLUGIN_DIR, id, "README.MD")
+		if data, err = os.ReadFile(filename); err != nil {
+			return
+		}
+		return
+	}
+	var resp *http.Response
+	url, err := url.JoinPath("https://api.github.com", "repos",
+		info.GhRepoOwner, info.GhRepoName, "readme", info.RepoSubdir)
+	if err != nil {
+		return
+	}
+	url += "?ref=" + info.RepoBranch
+	loger.Debugf("Getting readme at %q", url)
+	if resp, err = httpClient.Get(url); err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusNotFound {
+			err = ErrNotFound
+			return
+		}
+		err = &StatusCodeErr{resp.StatusCode}
+		return
+	}
+	if data, err = io.ReadAll(resp.Body); err != nil {
+		return
+	}
+	var payload struct{
+		Sha      string `json:"sha"`
+		Size     int64  `json:"size"`
+		Url      string `json:"url"`
+		HtmlUrl  string `json:"html_url"`
+		GitUrl   string `json:"git_url"`
+		Download string `json:"download_url"`
+		Type     string `json:"type"`
+		Content  string `json:"content"`
+		Encoding string `json:"encoding"`
+	}
+	if err = json.Unmarshal(data, &payload); err != nil {
+		err = fmt.Errorf("JsonDecodeErr: %v", err)
+		return
+	}
+	if payload.Encoding != "base64" {
+		err = fmt.Errorf("Unexpect content enocding %q, expect base64", payload.Encoding)
+		return
+	}
+	if data, err = base64.StdEncoding.DecodeString(payload.Content); err != nil {
+		return
+	}
+	return
+}
+
 func (api *MySqlAPI)GetPluginReleases(id string)(releases []*PluginRelease, err error){
 	const queryCmd = "SELECT `tag`,`enabled`,`stable`,`size`," +
 		"CONVERT_TZ(`uploaded`,@@session.time_zone,'+00:00') AS `utc_uploaded`," +
 		"`filename`,`downloads`,`github_url`" +
-		" FROM plugin_releases WHERE `id`=?"
+		" FROM plugin_releases WHERE `id`=? ORDER BY `uploaded` DESC"
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
 	defer cancel()
@@ -367,9 +438,9 @@ type NopReadSeeker struct{
 func (NopReadSeeker)Close()(error){ return nil }
 
 func (api *MySqlAPI)GetPluginReleaseAsset(id string, tag Version, filename string)(rc io.ReadSeekCloser, modTime time.Time, err error){
-	cache := filepath.Join(PLUGIN_CACHE_DIR, filepath.Clean(filepath.Join(id, tag.String(), filename)))
+	filenam := filepath.Join(PLUGIN_DIR, id, "release", tag.String(), filepath.Clean(filename))
 	var fd *os.File
-	if fd, err = os.Open(cache); err == nil {
+	if fd, err = os.Open(filenam); err == nil {
 		if stat, err := fd.Stat(); err == nil {
 			modTime = stat.ModTime()
 		}
@@ -378,6 +449,10 @@ func (api *MySqlAPI)GetPluginReleaseAsset(id string, tag Version, filename strin
 	}
 	var release *PluginRelease
 	if release, err = api.GetPluginRelease(id, tag); err != nil {
+		return
+	}
+	if len(release.GithubUrl) == 0 {
+		err = ErrNotFound
 		return
 	}
 	var resp *http.Response
@@ -394,14 +469,14 @@ func (api *MySqlAPI)GetPluginReleaseAsset(id string, tag Version, filename strin
 	if data, err = io.ReadAll(resp.Body); err != nil {
 		return
 	}
-	if err := os.MkdirAll(filepath.Dir(cache), 0755); err == nil {
-		if err = os.WriteFile(cache, data, 0444); err != nil {
-			loger.Warnf("Cannot write cache file %q: %v", cache, err)
+	if err := os.MkdirAll(filepath.Dir(filenam), 0755); err == nil {
+		if err = os.WriteFile(filenam, data, 0444); err != nil {
+			loger.Warnf("Cannot write to asset file %q: %v", filenam, err)
 		}else{
-			loger.Infof("Cache %s(v%s):%s at %q: %v", id, tag, filename, cache, err)
+			loger.Infof("Cached %s(v%s):%s at %q: %v", id, tag, filename, filenam, err)
 		}
 	}else{
-		loger.Warnf("Cannot make cache dir %q: %v", filepath.Dir(cache), err)
+		loger.Warnf("Cannot make asset dir %q: %v", filepath.Dir(filenam), err)
 	}
 	rc = NopReadSeeker{bytes.NewReader(data)}
 	return

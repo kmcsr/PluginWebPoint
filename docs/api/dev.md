@@ -81,7 +81,26 @@ The charset is `utf8`
 		```js
 		{
 			"status": "ok", // should be ok
-			"data": [ // List of plugin, see below `/plugin/{id:string}/info`
+			"data": [ // List of plugin
+				{
+					"id": String, // Plugin's ID
+					"name": String, // Plugin's display name
+					"version": String, // Plugin's current version
+					"authors": [String], // The authors of the plugin, in a string list
+					"desc": String | undefined, // The plugin's description, mostly in English, could be none
+					"desc_zhCN": String | undefined, // The plugin's description in Chinese, could be none
+					"createAt": String, // When is the plugin be added into the database. Formatted
+					"lastUpdate": String, // The plugin last update time, not used now. Formatted
+					"labels": { // is this plugin labeled by the key, maybe undefined
+						"information": Boolean | undefined,
+						"tool": Boolean | undefined,
+						"management": Boolean | undefined,
+						"api": Boolean | undefined,
+					},
+					"downloads": Number, // The total download count of the plugin releases, synced from github, maybe delayed
+					"github_sync": Boolean, // Is the plugin synced from github or not
+					"last_sync": String | undefined, // Last time it synced and updated from github. Maybe undefined if it's not synced from github. Formatted
+				}
 			]
 		}
 		```
@@ -134,8 +153,8 @@ The charset is `utf8`
 				"desc_zhCN": String | undefined, // The plugin's description in Chinese, could be none
 				"createAt": String, // When is the plugin be added into the database. Formatted
 				"lastUpdate": String, // The plugin last update time, not used now. Formatted
-				"repo": String, // Github repo link for the plugin
-				"link": String, // Github main page link
+				"repo": String, // Repo link for the plugin
+				"link": String, // Main page link
 				"labels": { // is this plugin labeled by the key, maybe undefined
 					"information": Boolean | undefined,
 					"tool": Boolean | undefined,
@@ -147,10 +166,26 @@ The charset is `utf8`
 					"<plugin id>": "<version condition>", // for version condition, please see <https://mcdreforged.readthedocs.io/en/latest/plugin_dev/metadata.html#dependencies>
 				},
 				"github_sync": Boolean, // Is the plugin synced from github or not
-				"last_sync": String | undefined, // Last time it synced and updated from github. Maybe undefined if it's not synced from github. Formatted
+				"ghRepoOwner": String | undefined, // The github repo owner. Maybe undefined if it's not synced from github
+				"ghRepoName": String | undefined, // The github repo name. Maybe undefined
+				"last_sync": String | undefined, // Last time it synced and updated from github. Maybe undefined. Formatted.
 			}
 		}
 		```
+
+## `/plugin/{id:string}/readme`
+
+- Description:
+	Get the plugin readme file
+- Request:
+	- Method: `GET`
+	- URLParams:
+		`render`: Boolean. Render the readme file from markdown to html. (default: false)
+	- Payload: *None*
+- Response:
+	- StatusCode: `200` OK
+	- Content-Type: `text/plain`, `text/html`, `text/markdown`
+	- Payload: *The README content*
 
 ## `/plugin/{id:string}/releases`
 

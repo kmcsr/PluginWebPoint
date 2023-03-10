@@ -9,8 +9,10 @@ import WebBox from 'vue-material-design-icons/WebBox.vue'
 <template>
 	<header id="header">
 		<div class="locale-changer">
-			<WebBox class="flex-box" size="2rem" />
-			<select v-model="$i18n.locale">
+			<label for="i18n-lang-select">
+				<WebBox class="flex-box" size="2rem" />
+			</label>
+			<select id="i18n-lang-select" v-model="$i18n.locale">
 				<option v-for="locale in $i18n.availableLocales" :key="locale"
 					:value="locale">{{locale}}</option>
 			</select>
@@ -42,13 +44,14 @@ import WebBox from 'vue-material-design-icons/WebBox.vue'
 	justify-content: flex-end;
 	width: 100%;
 	height: 3.5rem;
-	background: #fff;
+	background: #e8e8e8;
 	z-index: 1;
 }
 
 #body {
 	margin-bottom: 5rem;
   padding: 0 0.8rem;
+  overflow: scroll;
 }
 
 #footer {

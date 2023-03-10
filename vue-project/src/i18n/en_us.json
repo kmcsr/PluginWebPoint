@@ -25,10 +25,12 @@
 		"downloads": "Downloads",
 		"labels": "Labels",
 		"links": "Links",
+		"readme": "Readme",
 		"dependencies": "Dependencies",
 		"releases": "Release files",
 		"filename": "Filename",
 		"size": "Size",
+		"download_count": "Downloads",
 		"ago": "ago"
 	},
 	"label": {

@@ -7,6 +7,7 @@ var i18n = null;
 
 export async function setupI18n(){
 	const _i18n = createI18n({
+		legacy: false,
 		locale: 'en_us',
 		fallbackLocale: 'en_us',
 		messages: {

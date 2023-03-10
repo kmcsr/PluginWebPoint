@@ -139,6 +139,8 @@ type PluginMeta struct{
 	Name string `json:"name"`
 	Version string `json:"version"`
 	Repo string `json:"repository"`
+	Branch string `json:"branch"`
+	RelatedPath string `json:"related_path"`
 	Authors []string `json:"authors"`
 	Deps DependMap `json:"dependencies"`
 	Reqs Requirements `json:"requirements"`
@@ -149,7 +151,7 @@ type Asset struct{
 	Name string `json:"name"`
 	Size int64 `json:"size"`
 	DownloadCount int64 `json:"download_count"`
-	CreateAt time.Time `json:"create_at"`
+	CreateAt time.Time `json:"created_at"`
 	BrowserDownloadUrl string `json:"browser_download_url"`
 }
 
@@ -157,19 +159,20 @@ type Release struct{
 	Url string `json:"url"`
 	Name string `json:"name"`
 	TagName string `json:"tag_name"`
-	CreateAt time.Time `json:"create_at"`
+	CreateAt time.Time `json:"created_at"`
 	Assets []Asset `json:"assets"`
 	Description string `json:"description"`
 	Prerelease bool `json:"prerelease"`
 	ParsedVersion string `json:"parsed_version"`
+	Meta any `json:"meta"`
 }
 
+const CurrenReleaseSchemaVersion = 6
 type PluginRelease struct{
 	SchemaVersion int `json:"schema_version"`
 	Id string `json:"id"`
 	LatestVersion string `json:"latest_version"`
 	Releases []Release `json:"releases"`
-	ReleaseMeta map[string]PluginMeta `json:"release_meta"`
 }
 
 func GetPluginMetaJson(id string)(meta PluginMeta, err error){
@@ -211,8 +214,8 @@ func GetPluginReleaseJson(id string)(meta PluginRelease, err error){
 	if err = json.Unmarshal(body, &meta); err != nil {
 		return
 	}
-	if meta.SchemaVersion != 4 {
-		err = fmt.Errorf("Unexpect schema version %d, expect 4", meta.SchemaVersion)
+	if meta.SchemaVersion != CurrenReleaseSchemaVersion {
+		err = fmt.Errorf("Unexpect schema version %d, expect %d", meta.SchemaVersion, CurrenReleaseSchemaVersion)
 		return
 	}
 	return
@@ -237,8 +240,8 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 	const insertCmd = "INSERT INTO plugins (`id`,`name`,`enabled`,`version`,`authors`,`desc`,`desc_zhCN`," +
 		"`repo`,`repo_branch`,`repo_subdir`,`link`," +
 		"`label_information`,`label_tool`,`label_management`,`label_api`," +
-		"`createAt`,`lastUpdate`,`github_sync`,`last_sync`)" +
-		"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,TRUE,?)"
+		"`createAt`,`lastUpdate`,`github_sync`,`ghRepoOwner`,`ghRepoName`,`last_sync`)" +
+		" VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,TRUE,?,?,?)"
 	const updateCmd = "UPDATE plugins SET " +
 			"`name`=?," +
 			"`enabled`=?," +
@@ -254,14 +257,16 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 			"`label_tool`=?," +
 			"`label_management`=?," +
 			"`label_api`=?," +
-			"`last_sync`=? " +
-		"WHERE `id`=?"
+			"`ghRepoOwner`=?," +
+			"`ghRepoName`=?," +
+			"`last_sync`=?" +
+			" WHERE `id`=?"
 	const removeDepenceCmd = "DELETE FROM plugin_dependencies WHERE `id`=?"
 	const insertDepenceCmd = "INSERT INTO plugin_dependencies (`id`,`target`,`tag`)" +
-		"VALUES (?,?,?)"
-	const insertReleaseCmd = "INSERT IGNORE INTO plugin_releases (`id`,`tag`,`enabled`,`stable`,`size`,`filename`,`downloads`," +
+		" VALUES (?,?,?)"
+	const insertReleaseCmd = "INSERT IGNORE INTO plugin_releases (`id`,`tag`,`enabled`,`stable`,`size`,`uploaded`,`filename`,`downloads`," +
 		"`github_url`)" +
-		"VALUES (?,?,TRUE,?,?,?,?,?)"
+		" VALUES (?,?,TRUE,?,?,?,?,?,?)"
 
 	now := time.Now().Format("2006-01-02 15:04:05")
 
@@ -279,6 +284,27 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 		if d, ok := m["zh_cn"].(string); ok {
 			desc_zhCN = d
 		}
+	}
+	if !strings.HasPrefix(info.Repo, "https://github.com/") {
+		err = fmt.Errorf("Unexpect repo link (missing gh prefix): %q", info.Repo)
+		return
+	}
+	var ghRepoOwner, ghRepoName string
+	{
+		b := info.Repo[len("https://github.com/"):]
+		if b[len(b) - 1] == '/' {
+			b = b[:len(b) - 1]
+		}
+		paths := strings.Split(b, "/")
+		if len(paths) <= 1 {
+			err = fmt.Errorf("Unexpect repo link (missing repo name): %q, expect 'https://github.com/{owner}/{name}'", info.Repo)
+			return
+		}
+		if len(paths) > 2 {
+			err = fmt.Errorf("Unexpect repo link (extra path): %q, expect 'https://github.com/{owner}/{name}'", info.Repo)
+			return
+		}
+		ghRepoOwner, ghRepoName = paths[0], paths[1]
 	}
 	link, err := url.JoinPath(info.Repo, "tree", info.Branch, info.RelatedPath)
 	if err != nil {
@@ -315,7 +341,7 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 			strings.Join(meta.Authors, ","), desc, desc_zhCN,
 			info.Repo, info.Branch, info.RelatedPath, link,
 			info.Labels.HasInformation(), info.Labels.HasTool(), info.Labels.HasManagement(), info.Labels.HasAPI(),
-			now, info.Id); err != nil {
+			ghRepoOwner, ghRepoName, now, info.Id); err != nil {
 			return
 		}
 		if _, err = ExecTx(tx, removeDepenceCmd, info.Id); err != nil {
@@ -327,7 +353,7 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 			strings.Join(meta.Authors, ","), desc, desc_zhCN,
 			info.Repo, info.Branch, info.RelatedPath, link,
 			info.Labels.HasInformation(), info.Labels.HasTool(), info.Labels.HasManagement(), info.Labels.HasAPI(),
-			now, now, now); err != nil {
+			now, now, ghRepoOwner, ghRepoName, now); err != nil {
 			return
 		}
 	}
@@ -337,16 +363,21 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 		}
 	}
 	for _, release := range releases.Releases {
-		assets := release.Assets[0]
-		if _, err = ExecTx(tx, insertReleaseCmd, info.Id, release.ParsedVersion, release.Prerelease,
-			assets.Size, assets.Name, assets.DownloadCount, assets.BrowserDownloadUrl); err != nil {
-			if e, ok := err.(*mysql.MySQLError); ok {
-				if e.Number == 1062 {
-					continue
+		for _, asset := range release.Assets {
+			if strings.HasSuffix(asset.Name, ".mcdr") {
+				loger.Debugf("inserting asset: %v", asset)
+				if _, err = ExecTx(tx, insertReleaseCmd, info.Id, release.ParsedVersion, release.Prerelease,
+					asset.Size, asset.CreateAt, asset.Name, asset.DownloadCount, asset.BrowserDownloadUrl); err != nil {
+					if e, ok := err.(*mysql.MySQLError); ok {
+						if e.Number == 1062 {
+							continue
+						}
+					}
+					// loger.Errorf("Error when insert release into sql")
+					return
 				}
+				break
 			}
-			// loger.Errorf("Error when insert release into sql")
-			return
 		}
 	}
 	if err = tx.Commit(); err != nil {
@@ -402,6 +433,10 @@ func main(){
 					return
 				}
 				releases, err := GetPluginReleaseJson(info.Id)
+				if err != nil {
+					loger.Errorf("[%s] Release json error: %v", info.Id, err)
+					return
+				}
 				if err = updateSql(info, meta, releases); err != nil {
 					loger.Errorf("[%s] Cannot sync to database: %v", info.Id, err)
 				}

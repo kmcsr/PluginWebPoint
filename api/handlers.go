@@ -125,6 +125,26 @@ func devPluginInfo(ctx iris.Context){
 	})
 }
 
+func devPluginReadme(ctx iris.Context){
+	id := ctx.Params().GetString("id")
+	render, _ := ctx.URLParamBool("render")
+	body, prefix, err := Ins.GetPluginReadme(id)
+	if err != nil {
+		if err == ErrNotFound {
+			ctx.StopWithJSON(iris.StatusNotFound, NewErrResp("NotFound", err))
+			return
+		}
+		ctx.StopWithJSON(iris.StatusInternalServerError, NewErrResp("ApiErr", err))
+		return
+	}
+	if render {
+		body = RenderMarkdown(body, &Option{
+			URLPrefix: prefix,
+		})
+	}
+	_, _ = ctx.Write(body)
+}
+
 func devPluginReleases(ctx iris.Context){
 	id := ctx.Params().GetString("id")
 	releases, err := Ins.GetPluginReleases(id)
@@ -215,6 +235,7 @@ func GetDevAPIHandler()(http.Handler){
 	})
 	app.PartyFunc("/plugin/{id:string pid()}", func(p iris.Party){
 		p.Get("/info", devPluginInfo)
+		p.Get("/readme", devPluginReadme)
 		p.Get("/releases", devPluginReleases)
 		p.PartyFunc("/release/{tag:string version()}", func(p iris.Party){
 			p.Get("/", devPluginRelease)

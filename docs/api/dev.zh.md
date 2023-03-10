@@ -81,7 +81,26 @@
 		```js
 		{
 			"status": "ok",
-			"data": [ // 插件列表, 见下 `/plugin/{id:string}/info`
+			"data": [ // 插件列表
+				{
+					"id": String, // 插件ID
+					"name": String, // 插件名称
+					"version": String, // 插件目前的版本
+					"authors": [String], // 插件作者, 为一个字符串列表
+					"desc": String | undefined, // 插件描述, 大部分为英文版本, 可能未定义
+					"desc_zhCN": String | undefined, // 插件中文描述, 可能未定义
+					"createAt": String, // 格式化后插件加入数据库的时间
+					"lastUpdate": String, // 格式化后插件被修改的时间, 目前没有明确定义
+					"labels": { // 插件标签列表
+						"information": Boolean | undefined,
+						"tool": Boolean | undefined,
+						"management": Boolean | undefined,
+						"api": Boolean | undefined,
+					},
+					"downloads": Number, // 插件总下载数量, 由于从github同步, 所以可能会有延迟
+					"github_sync": Boolean, // 插件数据是否是从Github仓库同步而来
+					"last_sync": String | undefined, // 格式化后插件最后一次从Github同步的时间
+				}
 			]
 		}
 		```
@@ -147,10 +166,26 @@
 					"<plugin id>": "<version condition>", // 见 <https://mcdreforged.readthedocs.io/en/latest/plugin_dev/metadata.html#dependencies>
 				},
 				"github_sync": Boolean, // 插件数据是否是从Github仓库同步而来
+				"ghRepoOwner": String | undefined, // Github仓库所有者
+				"ghRepoName": String | undefined, // Github仓库名称
 				"last_sync": String | undefined, // 格式化后插件最后一次从Github同步的时间
 			}
 		}
 		```
+
+## `/plugin/{id:string}/readme`
+
+- Description:
+	获取插件README文件
+- Request:
+	- Method: `GET`
+	- URLParams:
+		`render`: Boolean. 将README从markdown格式转换为html. (默认: false)
+	- Payload: *None*
+- Response:
+	- StatusCode: `200` OK
+	- Content-Type: `text/plain`, `text/html`, `text/markdown`
+	- Payload: *README文件内容*
 
 ## `/plugin/{id:string}/releases`
 
