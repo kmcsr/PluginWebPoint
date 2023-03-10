@@ -234,7 +234,7 @@ func ExecTx(tx *sql.Tx, cmd string, args ...any)(res sql.Result, err error){
 }
 
 func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err error){
-	const insertCmd = "INSERT IGNORE INTO plugins (`id`,`name`,`enabled`,`version`,`authors`,`desc`,`desc_zhCN`,`repo`,`link`," +
+	const insertCmd = "REPLACE INTO plugins (`id`,`name`,`enabled`,`version`,`authors`,`desc`,`desc_zhCN`,`repo`,`link`," +
 		"`label_information`,`label_tool`,`label_management`,`label_api`,`github_sync`,`last_sync`)" +
 		"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,TRUE,?)"
 	const removeDepenceCmd = "DELETE FROM plugin_dependencies WHERE `id`=?"
