@@ -1,4 +1,8 @@
 
 # PluginWebPoint (PWP)
 
-A web point for mcdreforged plugin catalogue
+A plugin list web point that synced from [MCDReforged Plugin Catalogue](https://github.com/MCDReforged/PluginCatalogue)
+
+# APIs
+
+- [Dev API](./docs/api/dev.md) \*\***Unstable**\*\*

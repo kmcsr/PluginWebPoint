@@ -201,7 +201,7 @@ onMounted(() => {
 .plugin-version {
 	font-style: italic;
 	font-size: 1rem;
-	font-weight: 100;
+	font-weight: 250;
 }
 
 .plugin-authors {

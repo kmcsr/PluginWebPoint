@@ -341,7 +341,7 @@ onUnmounted(() => {
 
 .plugin-search-input {
 	height: 2rem;
-	width: 14rem;
+	width: 17rem;
 	margin-left: 0.8rem;
 	padding-left: 2.5rem;
 	padding-right: 0.5rem;

@@ -292,7 +292,7 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 	defer tx.Rollback()
 
 	loger.Infof("Insert into database for %s", info.Id)
-	if _, err = tx.Exec(insertCmd, info.Id, meta.Name, !info.Disable, meta.Version,
+	if _, err = ExecTx(tx, insertCmd, info.Id, meta.Name, !info.Disable, meta.Version,
 		strings.Join(meta.Authors, ","), desc, desc_zhCN, info.Repo, link,
 		info.Labels.HasInformation(), info.Labels.HasTool(), info.Labels.HasManagement(), info.Labels.HasAPI(),
 		now); err != nil {

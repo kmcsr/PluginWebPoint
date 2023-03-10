@@ -79,12 +79,12 @@ type PluginRelease struct {
 }
 
 type PluginListOpt struct{
-	FilterBy string
-	Tags     []string
-	SortBy   string
-	Reversed bool
-	Limit    int
-	Offset   int
+	FilterBy string   `json:"filterBy,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	SortBy   string   `json:"sortBy,omitempty"`
+	Reversed bool     `json:"reversed,omitempty"`
+	Limit    int      `json:"limit,omitempty"`
+	Offset   int      `json:"offset,omitempty"`
 }
 
 type API interface {
@@ -422,41 +422,42 @@ func parseFilterBy(filter string)(cmd string, args []any){
 	cmds := []string{}
 	for _, a := range strings.Split(filter, " ") {
 		ok := true
+		la := strings.ToLower(a)
 		switch {
 		case a == "":
-		case strings.HasPrefix(a, "id:"):
+		case strings.HasPrefix(la, "id:"):
 			a = a[len("id:"):]
 			cmds = append(cmds, "a.`id` LIKE ?")
 			f := "%" + a + "%"
 			args = append(args, f)
-		case strings.HasPrefix(a, "n:"):
+		case strings.HasPrefix(la, "n:"):
 			a = a[len("n:"):]
 			ok = false
 			fallthrough
-		case strings.HasPrefix(a, "name:"):
+		case strings.HasPrefix(la, "name:"):
 			if ok {
 				a = a[len("name:"):]
 			}
 			cmds = append(cmds, "a.`name` LIKE ?")
 			f := "%" + a + "%"
 			args = append(args, f)
-		case strings.HasPrefix(a, "@"):
+		case strings.HasPrefix(la, "@"):
 			a = a[len("@"):]
 			ok = false
 			fallthrough
-		case strings.HasPrefix(a, "a:"):
+		case strings.HasPrefix(la, "a:"):
 			if ok {
 				a = a[len("a:"):]
 				ok = false
 			}
 			fallthrough
-		case strings.HasPrefix(a, "author:"):
+		case strings.HasPrefix(la, "author:"):
 			if ok {
 				a = a[len("author:"):]
 				ok = false
 			}
 			fallthrough
-		case strings.HasPrefix(a, "authors:"):
+		case strings.HasPrefix(la, "authors:"):
 			if ok {
 				a = a[len("authors:"):]
 			}
@@ -465,19 +466,19 @@ func parseFilterBy(filter string)(cmd string, args []any){
 				f := "%" + a + "%"
 				args = append(args, f)
 			}
-		case strings.HasPrefix(a, "d:"):
+		case strings.HasPrefix(la, "d:"):
 			a = a[len("d:"):]
 			ok = false
 			fallthrough
-		case strings.HasPrefix(a, "description:"):
+		case strings.HasPrefix(la, "desc:"):
 			if ok {
-				a = a[len("description:"):]
+				a = a[len("desc:"):]
 				ok = false
 			}
 			fallthrough
-		case strings.HasPrefix(a, "desc:"):
+		case strings.HasPrefix(la, "description:"):
 			if ok {
-				a = a[len("desc:"):]
+				a = a[len("description:"):]
 			}
 			cmds = append(cmds, "a.`desc` LIKE ?")
 			f := "%" + a + "%"
@@ -496,6 +497,7 @@ func (opt PluginListOpt)appendTagFilter(cmd string, args []any)(string, []any){
 	if len(opt.Tags) > 0 {
 		cmds := []string{}
 		for _, t := range opt.Tags {
+			t = strings.ToLower(t)
 			switch t {
 			case "management", "tool", "information", "api":
 				cmds = append(cmds, "`label_" + t + "`=TRUE")
@@ -509,8 +511,8 @@ func (opt PluginListOpt)appendTagFilter(cmd string, args []any)(string, []any){
 }
 
 func (opt PluginListOpt)appendOrderBy(cmd string, args []any)(string, []any){
-	switch opt.SortBy {
-	case "id", "name", "authors", "lastUpdate":
+	switch strings.ToLower(opt.SortBy) {
+	case "id", "name", "authors", "createAt", "lastUpdate":
 		cmd += " ORDER BY a.`" + opt.SortBy + "`"
 		rev := opt.Reversed
 		switch opt.SortBy {

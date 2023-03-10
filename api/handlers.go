@@ -2,8 +2,8 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -12,32 +12,54 @@ import (
 	irisLogger "github.com/kataras/iris/v12/middleware/logger"
 )
 
-func devPlugins(ctx iris.Context){
-	loger.Debugf("URL params: %v", ctx.URLParams())
-	filterBy := ctx.URLParamTrim("filterBy")
-	tags0 := ctx.URLParamTrim("tags")
-	var tags []string
-	if len(tags0) > 0 {
-		tags = strings.Split(tags0, ",")
+const DevApiVerion = 0
+
+type ErrResp struct{
+	Status string `json:"status"`
+	Name   string `json:"error"`
+	Msg    string `json:"message"`
+}
+
+func NewErrResp(name string, err error)(*ErrResp){
+	return &ErrResp{
+		Status: "error",
+		Name: name,
+		Msg: err.Error(),
 	}
-	sortBy := ctx.URLParamTrim("sortBy")
-	reversed, _ := ctx.URLParamBool("reversed")
-	offset, _ := ctx.URLParamInt("offset")
-	limit, _ := ctx.URLParamInt("limit")
-	list, err := Ins.GetPluginList(PluginListOpt{
-		FilterBy: filterBy,
-		Tags: tags,
-		SortBy: sortBy,
-		Reversed: reversed,
-		Offset: offset,
-		Limit: limit,
-	})
+}
+
+func devPlugins(ctx iris.Context){
+	var payload PluginListOpt
+	if body, err := ctx.GetBody(); err != nil {
+		ctx.StopWithJSON(iris.StatusBadRequest, NewErrResp("BodyReadErr", err))
+		return
+	}else if len(body) > 0 {
+		if err = json.Unmarshal(body, &payload); err != nil {
+			ctx.StopWithJSON(iris.StatusBadRequest, NewErrResp("JsonDecodeErr", err))
+			return
+		}
+	}
+	if ctx.URLParamExists("filterBy") {
+		payload.FilterBy = ctx.URLParamTrim("filterBy")
+	}
+	if tags0 := ctx.URLParamTrim("tags"); len(tags0) > 0 {
+		payload.Tags = strings.Split(tags0, ",")
+	}
+	if ctx.URLParamExists("sortBy") {
+		payload.SortBy = ctx.URLParamTrim("sortBy")
+	}
+	if ctx.URLParamExists("reversed") {
+		payload.Reversed, _ = ctx.URLParamBool("reversed")
+	}
+	if ctx.URLParamExists("offset") {
+		payload.Offset, _ = ctx.URLParamInt("offset")
+	}
+	if ctx.URLParamExists("limit") {
+		payload.Limit, _ = ctx.URLParamInt("limit")
+	}
+	list, err := Ins.GetPluginList(payload)
 	if err != nil {
-		ctx.StopWithJSON(iris.StatusInternalServerError, iris.Map{
-			"status": "error",
-			"error": "ApiError",
-			"message": err.Error(),
-		})
+		ctx.StopWithJSON(iris.StatusInternalServerError, NewErrResp("ApiErr", err))
 		return
 	}
 	err = ctx.JSON(iris.Map{
@@ -47,24 +69,37 @@ func devPlugins(ctx iris.Context){
 }
 
 func devPluginCounts(ctx iris.Context){
-	filterBy := ctx.URLParamTrim("filterBy")
-	sortBy := ctx.URLParamTrim("sortBy")
-	reversed, _ := ctx.URLParamBool("reversed")
-	offset, _ := ctx.URLParamInt("offset")
-	limit, _ := ctx.URLParamInt("limit")
-	counts, err := Ins.GetPluginCounts(PluginListOpt{
-		FilterBy: filterBy,
-		SortBy: sortBy,
-		Reversed: reversed,
-		Offset: offset,
-		Limit: limit,
-	})
+	var payload PluginListOpt
+	if body, err := ctx.GetBody(); err != nil {
+		ctx.StopWithJSON(iris.StatusBadRequest, NewErrResp("BodyReadErr", err))
+		return
+	}else if len(body) > 0 {
+		if err = json.Unmarshal(body, &payload); err != nil {
+			ctx.StopWithJSON(iris.StatusBadRequest, NewErrResp("JsonDecodeErr", err))
+			return
+		}
+	}
+	if ctx.URLParamExists("filterBy") {
+		payload.FilterBy = ctx.URLParamTrim("filterBy")
+	}
+	if tags0 := ctx.URLParamTrim("tags"); len(tags0) > 0 {
+		payload.Tags = strings.Split(tags0, ",")
+	}
+	if ctx.URLParamExists("sortBy") {
+		payload.SortBy = ctx.URLParamTrim("sortBy")
+	}
+	if ctx.URLParamExists("reversed") {
+		payload.Reversed, _ = ctx.URLParamBool("reversed")
+	}
+	if ctx.URLParamExists("offset") {
+		payload.Offset, _ = ctx.URLParamInt("offset")
+	}
+	if ctx.URLParamExists("limit") {
+		payload.Limit, _ = ctx.URLParamInt("limit")
+	}
+	counts, err := Ins.GetPluginCounts(payload)
 	if err != nil {
-		ctx.StopWithJSON(iris.StatusInternalServerError, iris.Map{
-			"status": "error",
-			"error": "ApiError",
-			"message": err.Error(),
-		})
+		ctx.StopWithJSON(iris.StatusInternalServerError, NewErrResp("ApiErr", err))
 		return
 	}
 	ctx.JSON(iris.Map{
@@ -78,18 +113,10 @@ func devPluginInfo(ctx iris.Context){
 	info, err := Ins.GetPluginInfo(id)
 	if err != nil {
 		if err == ErrNotFound {
-			ctx.StopWithJSON(iris.StatusNotFound, iris.Map{
-				"status": "error",
-				"error": "NotFound",
-				"message": err.Error(),
-			})
+			ctx.StopWithJSON(iris.StatusNotFound, NewErrResp("NotFound", err))
 			return
 		}
-		ctx.StopWithJSON(iris.StatusInternalServerError, iris.Map{
-			"status": "error",
-			"error": "ApiError",
-			"message": err.Error(),
-		})
+		ctx.StopWithJSON(iris.StatusInternalServerError, NewErrResp("ApiErr", err))
 		return
 	}
 	ctx.JSON(iris.Map{
@@ -103,18 +130,10 @@ func devPluginReleases(ctx iris.Context){
 	releases, err := Ins.GetPluginReleases(id)
 	if err != nil {
 		if err == ErrNotFound {
-			ctx.StopWithJSON(iris.StatusNotFound, iris.Map{
-				"status": "error",
-				"error": "NotFound",
-				"message": err.Error(),
-			})
+			ctx.StopWithJSON(iris.StatusNotFound, NewErrResp("NotFound", err))
 			return
 		}
-		ctx.StopWithJSON(iris.StatusInternalServerError, iris.Map{
-			"status": "error",
-			"error": "ApiError",
-			"message": err.Error(),
-		})
+		ctx.StopWithJSON(iris.StatusInternalServerError, NewErrResp("ApiErr", err))
 		return
 	}
 	ctx.JSON(iris.Map{
@@ -127,28 +146,12 @@ func devPluginRelease(ctx iris.Context){
 	id := ctx.Params().GetString("id")
 	tag, err := VersionFromString(ctx.Params().GetString("tag"))
 	if err != nil {
-		if err == ErrNotFound {
-			ctx.StopWithJSON(iris.StatusNotFound, iris.Map{
-				"status": "error",
-				"error": "NotFound",
-				"message": err.Error(),
-			})
-			return
-		}
-		ctx.StopWithJSON(iris.StatusBadRequest, iris.Map{
-			"status": "error",
-			"error": "VersionFormatError",
-			"message": err.Error(),
-		})
+		ctx.StopWithJSON(iris.StatusBadRequest, NewErrResp("VersionFormatErr", err))
 		return
 	}
 	release, err := Ins.GetPluginRelease(id, tag)
 	if err != nil {
-		ctx.StopWithJSON(iris.StatusInternalServerError, iris.Map{
-			"status": "error",
-			"error": "ApiError",
-			"message": err.Error(),
-		})
+		ctx.StopWithJSON(iris.StatusInternalServerError, NewErrResp("ApiErr", err))
 		return
 	}
 	ctx.JSON(iris.Map{
@@ -161,37 +164,17 @@ func devPluginAsset(ctx iris.Context){
 	id := ctx.Params().GetString("id")
 	tag, err := VersionFromString(ctx.Params().GetString("tag"))
 	if err != nil {
-		if err == ErrNotFound {
-			ctx.StopWithJSON(iris.StatusNotFound, iris.Map{
-				"status": "error",
-				"error": "NotFound",
-				"message": err.Error(),
-			})
-			return
-		}
-		ctx.StopWithJSON(iris.StatusBadRequest, iris.Map{
-			"status": "error",
-			"error": "VersionFormatError",
-			"message": err.Error(),
-		})
+		ctx.StopWithJSON(iris.StatusBadRequest, NewErrResp("VersionFormatErr", err))
 		return
 	}
 	filename := ctx.Params().GetString("filename")
 	fd, modTime, err := Ins.GetPluginReleaseAsset(id, tag, filename)
 	if err != nil {
-		if os.IsNotExist(err) {
-			ctx.StopWithJSON(iris.StatusNotFound, iris.Map{
-				"status": "error",
-				"error": "FileNotFoundError",
-				"message": err.Error(),
-			})
+		if err == ErrNotFound {
+			ctx.StopWithJSON(iris.StatusBadRequest, NewErrResp("NotFound", err))
 			return
 		}
-		ctx.StopWithJSON(iris.StatusInternalServerError, iris.Map{
-			"status": "error",
-			"error": "ApiError",
-			"message": err.Error(),
-		})
+		ctx.StopWithJSON(iris.StatusInternalServerError, NewErrResp("ApiErr", err))
 		return
 	}
 	defer fd.Close()
@@ -206,11 +189,22 @@ func GetDevAPIHandler()(http.Handler){
 
 	app.Use(recover.New())
 	app.Use(irisLogger.New())
+	app.OnErrorCode(iris.StatusNotFound, func(ctx iris.Context){
+		if !ctx.IsStopped() {
+			ctx.StopWithJSON(iris.StatusNotFound, ErrResp{
+				Status: "error",
+				Name: "EntryPointNotExist",
+				Msg: "The entry point you are accessing is not exists",
+			})
+			return
+		}
+	})
 
 	app.Get("/", func(ctx iris.Context){
 		ctx.JSON(iris.Map{
 			"status": "ok",
 			"time": time.Now().UTC().String(),
+			"version": DevApiVerion,
 		})
 	})
 
@@ -219,14 +213,12 @@ func GetDevAPIHandler()(http.Handler){
 		p.Get("/", devPlugins)
 		p.Get("/count", devPluginCounts)
 	})
-	app.PartyFunc("/plugin", func(p iris.Party){
-		p.PartyFunc("/{id:string pid()}", func(p iris.Party){
-			p.Get("/info", devPluginInfo)
-			p.Get("/releases", devPluginReleases)
-			p.PartyFunc("/release/{tag:string version()}", func(p iris.Party){
-				p.Get("/", devPluginRelease)
-				p.Get("/asset/{filename:file}", devPluginAsset)
-			})
+	app.PartyFunc("/plugin/{id:string pid()}", func(p iris.Party){
+		p.Get("/info", devPluginInfo)
+		p.Get("/releases", devPluginReleases)
+		p.PartyFunc("/release/{tag:string version()}", func(p iris.Party){
+			p.Get("/", devPluginRelease)
+			p.Get("/asset/{filename:file}", devPluginAsset)
 		})
 	})
 
