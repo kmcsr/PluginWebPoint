@@ -18,6 +18,7 @@
 	},
 	"word": {
 		"filters": "Filters",
+		"sortBy": "Sort By",
 		"id": "ID",
 		"name": "Name",
 		"authors": "Authors",

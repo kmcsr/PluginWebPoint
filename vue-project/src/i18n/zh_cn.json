@@ -18,6 +18,7 @@
 	},
 	"word": {
 		"filters": "过滤器",
+		"sortBy": "排序方式",
 		"id": "ID",
 		"name": "名称",
 		"authors": "作者",

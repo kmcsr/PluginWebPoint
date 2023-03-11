@@ -15,6 +15,7 @@
     "github-markdown-css": "^5.2.0",
     "naive-ui": "^2.34.3",
     "vue": "^3.2.47",
+    "vue-cookies": "^1.8.3",
     "vue-gtag": "^2.0.1",
     "vue-i18n": "^9.2.2",
     "vue-material-design-icons": "^5.2.0",

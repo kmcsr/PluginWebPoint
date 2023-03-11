@@ -35,6 +35,41 @@ var httpClient = &http.Client{
 	Timeout: time.Second * 5,
 }
 
+var githubClient = initGithubClient()
+
+type ghClient struct{
+	cli *http.Client
+	username string
+	password string
+}
+
+func initGithubClient()(cli *ghClient){
+	ghuser := os.Getenv("GH_USER")
+	passwd := os.Getenv("GH_PASSWD")
+	cli = &ghClient{
+		cli: &http.Client{
+			Timeout: time.Second * 5,
+		},
+		username: ghuser,
+		password, passwd,
+	}
+	return
+}
+
+func (c *ghClient)GetWithContext(ctx context.Context, url string)(res *http.Response, err error){
+	req := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if res, err = c.cli.Do(req); err != nil {
+		return
+	}
+	if res.StatusCode != http.StatusOK {
+		res.Body.Close()
+		if res.StatusCode != http.StatusNoContent {
+			err = &StatusCodeErr{ Code: res.StatusCode }
+		}
+	}
+	return
+}
+
 type PluginCounts struct {
 	Total       int `json:"total"`
 	Information int `json:"information"`
@@ -293,12 +328,23 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 	return
 }
 
+func getUrlWithStatusErr(url string)(res *http.Response, err error){
+	if res, err = githubClient.Get(url); err != nil {
+		return
+	}
+	if res.StatusCode != http.StatusOK {
+		// Close connection when error
+		res.Body.Close()
+		err = &StatusCodeErr{res.StatusCode}
+	}
+	return
+}
+
 func (api *MySqlAPI)GetPluginReadme(id string)(data []byte, prefix string, err error){
 	var info *PluginInfo
 	if info, err = api.GetPluginInfo(id); err != nil {
 		return
 	}
-	prefix = info.Link
 	if !info.GithubSync {
 		filename := filepath.Join(PLUGIN_DIR, id, "README.MD")
 		if data, err = os.ReadFile(filename); err != nil {
@@ -306,27 +352,34 @@ func (api *MySqlAPI)GetPluginReadme(id string)(data []byte, prefix string, err e
 		}
 		return
 	}
-	var resp *http.Response
-	url, err := url.JoinPath("https://api.github.com", "repos",
-		info.GhRepoOwner, info.GhRepoName, "readme", info.RepoSubdir)
+	// prefix only exists when fetching readme from github
+	prefix = info.Link
+	var res *http.Response
+	baseurl, err := url.JoinPath("https://api.github.com", "repos",
+		info.GhRepoOwner, info.GhRepoName, "readme")
 	if err != nil {
 		return
 	}
-	url += "?ref=" + info.RepoBranch
-	loger.Debugf("Getting readme at %q", url)
-	if resp, err = httpClient.Get(url); err != nil {
+	url0, err := url.JoinPath(baseurl, info.RepoSubdir)
+	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		if resp.StatusCode == http.StatusNotFound {
+	baseurl0 := baseurl + "?ref=" + info.RepoBranch
+	url0 += "?ref=" + info.RepoBranch
+	loger.Debugf("Getting readme for %s at %q", id, url0)
+	res, err = getUrlWithStatusErr(url0)
+	if e, ok := err.(*StatusCodeErr); ok && e.Code == http.StatusNotFound {
+		loger.Debugf("Getting root readme for %s at %q", id, baseurl0)
+		res, err = getUrlWithStatusErr(baseurl0)
+	}
+	if err != nil {
+		if e, ok := err.(*StatusCodeErr); ok && e.Code == http.StatusNotFound {
 			err = ErrNotFound
-			return
 		}
-		err = &StatusCodeErr{resp.StatusCode}
 		return
 	}
-	if data, err = io.ReadAll(resp.Body); err != nil {
+	defer res.Body.Close()
+	if data, err = io.ReadAll(res.Body); err != nil {
 		return
 	}
 	var payload struct{

@@ -1,8 +1,11 @@
 <script setup>
+import { inject } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
 import WebBox from 'vue-material-design-icons/WebBox.vue'
 
+const $cookie = inject('$cookie')
 
+console.debug('$cookie:', $cookie)
 
 </script>
 

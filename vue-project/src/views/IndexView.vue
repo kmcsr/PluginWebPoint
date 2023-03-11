@@ -16,15 +16,37 @@ const pluginListHead = ref(null)
 const pinHead = ref(false)
 const errorText = ref(null)
 
-const textFilter = ref('')
-const tagFilters = ref([])
-const sortBy = ref('downloads')
-const reverseSort = ref(false)
+const {
+	data,
+	searching,
+	totalPage,
+	textFilter,
+	tagFilters,
+	sortBy,
+	reverseSort,
+	listCurrentPage,
+	listPageSize,
+} = (function(){
+	console.debug('current query:', router.currentRoute.value.query)
+	let q = router.currentRoute.value.query || {}
+	return {
+		data: ref(null),
+		searching: ref(true),
+		totalPage: ref(0),
+		textFilter: ref(q.q || ''),
+		tagFilters: ref(q.t ?q.t.split(',') :[]),
+		sortBy: ref(q.s || 'downloads'),
+		reverseSort: ref(q.reversed === 'true'),
+		listCurrentPage: ref(Number.parseInt(q.pg) || 1),
+		listPageSize: ref(Number.parseInt(q.ps) || 5),
+	}
+})()
 
 async function getPluginList(){
 	let counts = (await getPluginCounts()).total
-	if((listCurrentPage.value - 1) * listPageSize.value > counts){
-		listCurrentPage.value = Math.ceil(counts / listPageSize.value) || 1
+	totalPage.value = Math.ceil(counts / listPageSize.value) || 1
+	if(listCurrentPage.value > totalPage.value){
+		listCurrentPage.value = totalPage.value
 	}
 	if(!counts){
 		return []
@@ -38,50 +60,40 @@ async function getPluginList(){
 			offset: (listCurrentPage.value - 1) * listPageSize.value,
 			limit: listPageSize.value,
 		}
-	}).then((res) => {
-		return res.data.data
-	}).catch((error) => {
-		console.error('Error when getting plugins:', error)
-		if(error.response && error.response.data){
-			errorText.value = error.response.data.error + ': ' + error.response.data.message
-		}else{
-			errorText.value = error.code + ': ' + error.message
-		}
-		throw error // keep pop error
 	})
+	res = res.data.data
 	res.total = counts
 	return res
 }
 
 async function getPluginCounts(){
-	return await axios.get('/dev/plugins/count', {
+	let res = await axios.get('/dev/plugins/count', {
 		params: {
 			filterBy: textFilter.value,
 			tags: tagFilters.value.join(','),
 		}
-	}).then((res) => {
-		return res.data.data
-	}).catch((error) => {
-		console.error('Error when getting plugin count:', error)
-		if(!errorText.value){
-			if(error.response && error.response.data){
-				errorText.value = error.response.data.error + ': ' + error.response.data.message
-			}else{
-				errorText.value = error.code + ': ' + error.message
-			}
-		}
-		throw error // keep pop error
 	})
+	return res.data.data
 }
 
-const {
-	data,
-	loading: searching,
-	current: listCurrentPage,
-	pageSize: listPageSize,
-	totalPage,
-	run: refreshNoDelay,
-} = usePagination(() => {
+async function refreshData(){
+	try{
+		searching.value = true
+		data.value = await getPluginList()
+		return data.value
+	}catch(err){
+		if(err.response && err.response.data){
+			errorText.value = err.response.data.err + ': ' + err.response.data.message
+		}else{
+			errorText.value = err.code + ': ' + err.message
+		}
+		throw err
+	}finally{
+		searching.value = false
+	}
+}
+
+async function refreshNoDelay(){
 	errorText.value = null
 	let query = {}
 	if(textFilter.value.length){
@@ -97,43 +109,62 @@ const {
 		query.reversed = 'true'
 	}
 	if(listCurrentPage.value > 1){
-		query.pg = listCurrentPage.value
-		query.ps = listPageSize.value
+		query.pg = listCurrentPage.value.toString()
 	}
-	if(router.currentRoute.value.query !== query){
+	if(listPageSize.value !== 5){
+		query.ps = listPageSize.value.toString()
+	}
+	if(JSON.stringify(router.currentRoute.value.query) !== JSON.stringify(query)){
+		console.debug('from:', router.currentRoute.value.query, 'to:', query)
 		router.push({ query: query })
 	}
-	return getPluginList()
-}, {
-	errorRetryCount: 10,
-	// debounceInterval: 5,
-	manual: true,
-	pagination: {
-		currentKey: 'page',
-		pageSizeKey: 'limit',
-		totalKey: 'total',
-	},
-	defaultParams: [
-		{
-			page: 1,
-			limit: 5,
-		}
-	]
-})
-
-const {
-	run: refreshPluginList,
-} = useRequest(refreshNoDelay, {
-	debounceInterval: 700,
-})
-
-function refreshFunc(){
-	errorText.value = null
-	searching.value = true
-	refreshPluginList()
+	return await refreshData()
 }
 
-watch(textFilter, refreshFunc)
+{
+	let { current, pageSize } = usePagination(({ page, limit }) => {
+		return refreshNoDelay()
+	}, {
+		errorRetryCount: 10,
+		pagination: {
+			currentKey: 'page',
+			pageSizeKey: 'limit',
+		},
+		defaultParams: [
+			{
+				page: 1,
+				limit: 5,
+			}
+		]
+	})
+	watch(listCurrentPage, (v) => (current.value = v))
+	watch(listPageSize, (v) => (pageSize.value = v))
+}
+
+const refreshDelayed = (function(){
+	function _wait(t){
+		return new Promise((re) => {
+			setTimeout(()=>re(), t)
+		})
+	}
+	var pending = null
+	async function refreshDelayed(){
+		if(pending){
+			pending(true)
+			return
+		}
+		while(await Promise.race([new Promise((re)=>{ pending = re }), _wait(700)]));
+		pending = null
+		return await refreshNoDelay()
+	}
+	return refreshDelayed
+})()
+
+watch(textFilter, () => {
+	errorText.value = null
+	searching.value = true
+	refreshDelayed()
+})
 watch(tagFilters, refreshNoDelay)
 watch(sortBy, refreshNoDelay)
 watch(reverseSort, refreshNoDelay)
@@ -170,10 +201,10 @@ function onQueryChange(value){
 		if((q.reversed === 'true') !== reverseSort.value){
 			reverseSort.value = q.reversed === 'true'
 		}
-		if((q.pg || 1) != listCurrentPage.value){
+		if(q.pg && q.pg != listCurrentPage.value){
 			listCurrentPage.value = Number.parseInt(q.pg) || 1
 		}
-		if((q.ps || 5) != listPageSize.value){
+		if(q.ps && q.ps != listPageSize.value){
 			listPageSize.value = Number.parseInt(q.ps) || 5
 		}
 	}
@@ -183,30 +214,6 @@ watch(router.currentRoute, onQueryChange)
 
 onMounted(() => {
 	window.addEventListener('scroll', onScroll)
-	searching.value = true
-	console.debug('currentRoute:', router.currentRoute)
-	let q = router.currentRoute.value.query
-	if(q){
-		if(q.q){
-			textFilter.value = q.q
-		}
-		if(q.t){
-			tagFilters.value = q.t.split(',')
-		}
-		if(q.s){
-			sortBy.value = q.s
-		}
-		if(q.reversed){
-			reverseSort.value = q.reversed === 'true'
-		}
-		if(q.pg){
-			listCurrentPage.value = Number.parseInt(q.pg) || 1
-		}
-		if(q.ps){
-			listPageSize.value = Number.parseInt(q.ps) || 5
-		}
-	}
-	refreshNoDelay()
 })
 
 onUnmounted(() => {
@@ -271,7 +278,7 @@ onUnmounted(() => {
 						</button>
 					</div>
 					<div class="plugin-sorts">
-						<label for="plugin-sorts-options">Sort by</label>
+						<label for="plugin-sorts-options">{{ $t('word.sortBy') }}</label>
 						<component :is="reverseSort?SortDescending:SortAscending"
 							class="flex-box plugin-sorts-icon" size="1.5rem" @click="reverseSort=!reverseSort"/>
 						<select id="plugin-sorts-options" v-model="sortBy">

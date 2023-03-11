@@ -1,4 +1,5 @@
 import { createApp } from 'vue'
+import VueCookies from 'vue-cookies'
 import VueGtag from 'vue-gtag'
 import App from './App.vue'
 import { setupI18n } from './i18n'
@@ -16,6 +17,7 @@ if(!production){
 
 	app.config.globalProperties.$apiPrefix = '/dev'
 
+	app.use(VueCookies)
 	app.use(await setupI18n())
 
 	app.use(router)

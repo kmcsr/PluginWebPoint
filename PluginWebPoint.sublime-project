@@ -4,12 +4,6 @@
     {
       "path": ".",
     },
-    {
-			"path": "/Users/ckpn/Mine/projects/golang/pkg/mod/github.com/kataras/iris/v12@v12.2.0-beta7",
-		},
-    {
-			"path": "/Users/ckpn/Mine/projects/golang/src/github.com/gomarkdown"
-		},
   ],
   "settings":
   {

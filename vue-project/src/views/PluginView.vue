@@ -43,47 +43,50 @@ const navData = [
 	}
 ]
 
-async function getPluginInfo(){
+const { data, run: getPluginInfo } = useRequest(async () => {
 	try{
-		const res = await axios.get(`/dev/plugin/${props.plugin}/info`)
-		const data = res.data.data
-		document.title = `${data.name} | PWP`
-		return data
-	}catch(error){
-		console.error('Error when fetching plugin data:', error)
-		if(error.response && error.response.data){
-			errorText.value = error.response.data.error + ': ' + error.response.data.message
+		let res = await axios.get(`/dev/plugin/${props.plugin}/info`)
+		res = res.data.data
+		document.title = `${res.name} | PWP`
+		return res
+	}catch(err){
+		console.error('Error when fetching plugin data:', err)
+		if(err.response && err.response.data){
+			errorText.value = err.response.data.err + ': ' + err.response.data.message
 		}else{
-			errorText.value = error.code + ': ' + error.message
+			errorText.value = err.code + ': ' + err.message
 		}
-		throw error
+		throw err
 	}
-}
-
-async function getPluginReleases(){
-	return (await axios.get(`/dev/plugin/${props.plugin}/releases`)).data.data
-}
-
-async function getPluginReadme(){
-	const res = await axios.get(`/dev/plugin/${props.plugin}/readme`, {
-		params: {
-			render: true,
-		}
-	})
-	const data = res.data
-	return data
-}
-
-const { data, run: freshData } = useRequest(() => {
-	return Promise.all([getPluginInfo(), getPluginReadme(), getPluginReleases()]).then(([res1, res2, res3]) => {
-		if(!res1){
-			return null
-		}
-		res1.readme = res2
-		res1.releases = res3
-		return res1
-	})
 })
+
+const { data: dataReadme, run: getPluginReadme } = useRequest(async () => {
+	try{
+		const res = await axios.get(`/dev/plugin/${props.plugin}/readme`, {
+			params: {
+				render: true,
+			}
+		})
+		const data = res.data
+		return data
+	}catch(err){
+		if(err.response){
+			if(err.response.status === 404){
+				return false
+			}
+		}
+		console.error('Error when getting readme:', err)
+		throw err
+	}
+})
+
+const { data: dataReleases, run: getPluginReleases } = useRequest(async () => {
+	return (await axios.get(`/dev/plugin/${props.plugin}/releases`)).data.data
+})
+
+async function freshData(){
+	return await Promise.all([ getPluginInfo(), getPluginReadme(), getPluginReleases() ])
+}
 
 function pluginDependUrl(id){
 	if(id === 'mcdreforged'){
@@ -100,7 +103,7 @@ onBeforeMount(() => {
 })
 
 onMounted(() => {
-	freshData()
+	// freshData()
 })
 
 </script>
@@ -170,7 +173,8 @@ onMounted(() => {
 			</section>
 			<div class="plugin-main-box">
 				<SlideNav :data="navData" default="readme" v-model:active="navActive" :replace="true"/>
-				<article v-if="navActive === 'readme'" class="markdown-body plugin-readme" v-html="data.readme || '<i>Loading ...</i>'">
+				<article v-if="navActive === 'readme'" class="markdown-body plugin-readme"
+					v-html="dataReadme === false?'<i>No readme :&lt;</i>' :(dataReadme || '<i>Loading ...</i>')">
 				</article>
 				<article v-else-if="navActive === 'depend'">
 					<h2>{{ $t('word.dependencies') }}:</h2>
@@ -196,14 +200,14 @@ onMounted(() => {
 				</article>
 				<article v-else-if="navActive === 'releases'">
 					<h2>{{ $t('word.releases') }}:</h2>
-					<table v-if="data.releases">
+					<table v-if="dataReleases">
 						<thead>
 							<th>{{ $t('word.filename') }}</th>
 							<th>{{ $t('word.size') }}</th>
 							<th>{{ $t('word.downloads') }}</th>
 						</thead>
 						<tbody>
-							<tr v-for="r in data.releases">
+							<tr v-for="r in dataReleases">
 								<td>
 									<a :href="`/download/${r.id}/${r.tag}/${r.filename}`">
 										{{r.filename}}
