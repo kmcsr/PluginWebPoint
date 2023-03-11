@@ -35,41 +35,6 @@ var httpClient = &http.Client{
 	Timeout: time.Second * 5,
 }
 
-var githubClient = initGithubClient()
-
-type ghClient struct{
-	cli *http.Client
-	username string
-	password string
-}
-
-func initGithubClient()(cli *ghClient){
-	ghuser := os.Getenv("GH_USER")
-	passwd := os.Getenv("GH_PASSWD")
-	cli = &ghClient{
-		cli: &http.Client{
-			Timeout: time.Second * 5,
-		},
-		username: ghuser,
-		password, passwd,
-	}
-	return
-}
-
-func (c *ghClient)GetWithContext(ctx context.Context, url string)(res *http.Response, err error){
-	req := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if res, err = c.cli.Do(req); err != nil {
-		return
-	}
-	if res.StatusCode != http.StatusOK {
-		res.Body.Close()
-		if res.StatusCode != http.StatusNoContent {
-			err = &StatusCodeErr{ Code: res.StatusCode }
-		}
-	}
-	return
-}
-
 type PluginCounts struct {
 	Total       int `json:"total"`
 	Information int `json:"information"`
@@ -328,18 +293,6 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 	return
 }
 
-func getUrlWithStatusErr(url string)(res *http.Response, err error){
-	if res, err = githubClient.Get(url); err != nil {
-		return
-	}
-	if res.StatusCode != http.StatusOK {
-		// Close connection when error
-		res.Body.Close()
-		err = &StatusCodeErr{res.StatusCode}
-	}
-	return
-}
-
 func (api *MySqlAPI)GetPluginReadme(id string)(data []byte, prefix string, err error){
 	var info *PluginInfo
 	if info, err = api.GetPluginInfo(id); err != nil {
@@ -367,10 +320,10 @@ func (api *MySqlAPI)GetPluginReadme(id string)(data []byte, prefix string, err e
 	baseurl0 := baseurl + "?ref=" + info.RepoBranch
 	url0 += "?ref=" + info.RepoBranch
 	loger.Debugf("Getting readme for %s at %q", id, url0)
-	res, err = getUrlWithStatusErr(url0)
+	res, err = githubClient.Get(url0)
 	if e, ok := err.(*StatusCodeErr); ok && e.Code == http.StatusNotFound {
 		loger.Debugf("Getting root readme for %s at %q", id, baseurl0)
-		res, err = getUrlWithStatusErr(baseurl0)
+		res, err = githubClient.Get(baseurl0)
 	}
 	if err != nil {
 		if e, ok := err.(*StatusCodeErr); ok && e.Code == http.StatusNotFound {

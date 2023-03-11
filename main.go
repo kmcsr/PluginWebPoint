@@ -29,6 +29,12 @@ var loger logger.Logger = getLogger()
 
 func getLogger()(loger logger.Logger){
 	loger = golog.Logger
+	if DEBUG = os.Getenv("DEBUG") == "true"; DEBUG {
+		loger.SetLevel(logger.TraceLevel)
+		loger.Debug("Debug mode on")
+	}else{
+		loger.SetLevel(logger.InfoLevel)
+	}
 	golog.Unwrap(loger).Logger.SetTimeFormat("2006-01-02 15:04:05.000:")
 	return
 }
@@ -44,29 +50,7 @@ var (
 	port int = 80
 )
 
-func init(){
-	golog.Unwrap(loger).Logger.SetTimeFormat("2006-01-02 15:04:05.000:")
-}
-
-func parseArgs(){
-	for _, arg := range os.Args[1:] {
-		switch arg {
-		case "-debug":
-			DEBUG = true
-		}
-	}
-}
-
 func main(){
-	parseArgs()
-
-	if DEBUG {
-		loger.SetLevel(logger.TraceLevel)
-	}else{
-		loger.SetLevel(logger.InfoLevel)
-	}
-	loger.Debug("Debug mode on")
-	api.SetLogger(loger)
 
 	username := os.Getenv("DB_USER")
 	passwd := os.Getenv("DB_PASSWD")

@@ -53,6 +53,8 @@ while [ -n "$1" ]; do
 	shift
 done
 
+export DEBUG
+
 cd $(dirname $0)
 
 if [[ "$DEV" == true ]]; then

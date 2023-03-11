@@ -22,22 +22,19 @@ var loger logger.Logger = getLogger()
 
 func getLogger()(loger logger.Logger){
 	loger = golog.Logger
+	loger.SetLevel(logger.TraceLevel)
+	loger.Trace("Debug mode on")
 	golog.Unwrap(loger).Logger.SetTimeFormat("2006-01-02 15:04:05.000:")
 	return
 }
 
 var (
-	DEBUG bool = false
 	Target string = "./vue-project/dist"
 	host string = "127.0.0.1"
 	port int = 3080
 )
 
 func main(){
-	loger.SetLevel(logger.TraceLevel)
-	loger.Trace("Debug mode on")
-	api.SetLogger(loger)
-
 	username := os.Getenv("DB_USER")
 	if username == "" {
 		username = "root"
