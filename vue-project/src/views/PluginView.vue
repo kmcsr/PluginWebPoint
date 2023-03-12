@@ -252,8 +252,10 @@ onMounted(() => {
 }
 
 .plugin-main-box {
+	max-width: 100%;
 	width: 52rem;
 	margin-top: 1rem;
+	margin-bottom: 5rem;
 	padding: 1rem;
 	border: var(--color-border) 1px solid;
 	border-radius: 1rem;
@@ -305,6 +307,15 @@ th, td {
 
 .plugin-main-box>article {
 	padding: 0.5rem;
+}
+
+@media (max-width: 54.2rem){
+	.plugin-box {
+		flex-direction: column;
+	}
+	.plugin-section-box {
+		width: 100%;
+	}
 }
 
 </style>
