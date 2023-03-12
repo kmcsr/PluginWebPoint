@@ -5,3 +5,6 @@
 # outputs
 /output
 /dist
+
+# test
+/test

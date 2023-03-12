@@ -203,11 +203,19 @@ func devPluginAsset(ctx iris.Context){
 
 func GetDevAPIHandler()(http.Handler){
 	app := iris.New()
-	app.SetName("dev-api")
+	app.SetName("[DEV-API]")
+	if DEBUG {
+		app.Logger().SetLevel("debug")
+	}else{
+		app.Logger().SetLevel("info")
+	}
+	app.Logger().Debugf("DEV API Debug mode on")
 	app.Macros().Get("string").RegisterFunc("pid", PluginIdRe.MatchString)
 	app.Macros().Get("string").RegisterFunc("version", VersionRe.MatchString)
 
-	app.Use(recover.New())
+	if false {
+		app.Use(recover.New())
+	}
 	app.Use(irisLogger.New())
 	app.OnErrorCode(iris.StatusNotFound, func(ctx iris.Context){
 		if !ctx.IsStopped() {

@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 )
 
 var (
@@ -30,10 +30,6 @@ var (
 var (
 	ErrNotFound = errors.New("ErrNotFound")
 )
-
-var httpClient = &http.Client{
-	Timeout: time.Second * 5,
-}
 
 type PluginCounts struct {
 	Total       int `json:"total"`
@@ -123,7 +119,7 @@ func NewMySqlAPI(username string, passwd string, address string, database string
 		loger.Fatalf("Cannot connect to database: %v", err)
 	}
 	api.DB.SetConnMaxLifetime(time.Minute * 3)
-	api.DB.SetMaxOpenConns(100)
+	api.DB.SetMaxOpenConns(256)
 	api.DB.SetMaxIdleConns(25)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 3)
@@ -132,6 +128,21 @@ func NewMySqlAPI(username string, passwd string, address string, database string
 		loger.Fatalf("Cannot ping to database: %v", err)
 	}
 	return
+}
+
+func (api *MySqlAPI)QueryContext(ctx context.Context, cmd string, args ...any)(rows *sql.Rows, err error){
+	// loger.Debugf("Query sql cmd: %s\n  args: %v", cmd, args)
+	for {
+		if rows, err = api.DB.QueryContext(ctx, cmd, args...); err != nil {
+			if e, ok := err.(*mysql.MySQLError); ok {
+				switch e.Number {
+				case 1213: // Ignore deadlock
+					continue
+				}
+			}
+		}
+		return
+	}
 }
 
 func (api *MySqlAPI)GetPluginCounts(opt PluginListOpt)(count PluginCounts, err error){
@@ -196,7 +207,7 @@ func (api *MySqlAPI)GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err er
 	var rows *sql.Rows
 	loger.Debugf("exec sql: %q", cmd)
 	loger.Debugf("  args: %v", args)
-	if rows, err = api.DB.QueryContext(ctx, cmd, args...); err != nil {
+	if rows, err = api.QueryContext(ctx, cmd, args...); err != nil {
 		loger.Debugf("sql error: %v", err)
 		return
 	}
@@ -245,7 +256,7 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 		authors string
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 7)
 	defer cancel()
 
 	var (
@@ -273,7 +284,7 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 	info.Authors = strings.Split(authors, ",")
 	info.Dependencies = make(DependMap, 3)
 	var rows *sql.Rows
-	if rows, err = api.DB.QueryContext(ctx, queryDependenciesCmd, id); err != nil {
+	if rows, err = api.QueryContext(ctx, queryDependenciesCmd, id); err != nil {
 		return
 	}
 	defer rows.Close()
@@ -320,10 +331,10 @@ func (api *MySqlAPI)GetPluginReadme(id string)(data []byte, prefix string, err e
 	baseurl0 := baseurl + "?ref=" + info.RepoBranch
 	url0 += "?ref=" + info.RepoBranch
 	loger.Debugf("Getting readme for %s at %q", id, url0)
-	res, err = githubClient.Get(url0)
+	res, err = githubCli.Get(url0)
 	if e, ok := err.(*StatusCodeErr); ok && e.Code == http.StatusNotFound {
 		loger.Debugf("Getting root readme for %s at %q", id, baseurl0)
-		res, err = githubClient.Get(baseurl0)
+		res, err = githubCli.Get(baseurl0)
 	}
 	if err != nil {
 		if e, ok := err.(*StatusCodeErr); ok && e.Code == http.StatusNotFound {
@@ -463,7 +474,7 @@ func (api *MySqlAPI)GetPluginReleaseAsset(id string, tag Version, filename strin
 	}
 	var resp *http.Response
 	loger.Debugf("Downloading %q", release.GithubUrl)
-	if resp, err = httpClient.Get(release.GithubUrl); err != nil {
+	if resp, err = githubCli.Get(release.GithubUrl); err != nil {
 		return
 	}
 	defer resp.Body.Close()

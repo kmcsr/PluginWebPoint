@@ -2,6 +2,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,10 +11,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
-var githubClient = initGithubClient()
+var githubCli = initGithubCli()
 
 type GToken struct{
 	Token string `json:"access_token"`
@@ -25,20 +27,30 @@ func (t GToken)GetAuth()(string){
 	return "Bearer " + t.Token
 }
 
+type resCache struct{
+	Etag string
+	ModTime string
+	Body []byte
+}
+
 type ghClient struct{
 	cli *http.Client
 	appId     string
 	appSecret string
 	token *GToken
+
+	getCache map[string]resCache
+	getChMux sync.RWMutex
 }
 
-func initGithubClient()(c *ghClient){
+func initGithubCli()(c *ghClient){
 	c = &ghClient{
 		cli: &http.Client{
 			Timeout: time.Second * 5,
 		},
 		appId: os.Getenv("GH_CLI_ID"),
 		appSecret: os.Getenv("GH_CLI_SEC"),
+		getCache: make(map[string]resCache),
 	}
 	if len(c.appId) > 0 {
 		if os.Getenv("GH_OAUTH") == "true" {
@@ -75,7 +87,7 @@ func (c *ghClient)pingGhApi()(err error){
 	loger.Infof("x-ratelimit-remaining: %s", res.Header.Get("x-ratelimit-remaining"))
 	loger.Infof("x-ratelimit-used:      %s", res.Header.Get("x-ratelimit-used"))
 	ts, _ := strconv.ParseInt(res.Header.Get("x-ratelimit-reset"), 10, 64)
-	loger.Infof("x-ratelimit-reset: %s", time.Unix(ts, 0))
+	loger.Infof("x-ratelimit-reset: %s %s", res.Header.Get("x-ratelimit-reset"), time.Unix(ts, 0))
 	return
 }
 
@@ -176,10 +188,27 @@ func (c *ghClient)Get(url string)(*http.Response, error){
 	return c.GetWithContext(context.Background(), url)
 }
 
+type bytesReadCloser struct{
+	*bytes.Reader
+}
+
+func (bytesReadCloser)Close()(error){ return nil }
+
 func (c *ghClient)GetWithContext(ctx context.Context, url string)(res *http.Response, err error){
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return
+	}
+	c.getChMux.RLock()
+	cache, eok := c.getCache[url]
+	c.getChMux.RUnlock()
+	if eok {
+		if len(cache.Etag) > 0 {
+			req.Header.Set("If-Not-Match", cache.Etag)
+		}
+		if len(cache.ModTime) > 0 {
+			req.Header.Set("If-Modified-Since", cache.ModTime)
+		}
 	}
 	req.Header.Set("User-Agent", "PluginWebPoint-App")
 	if c.token != nil {
@@ -191,10 +220,37 @@ func (c *ghClient)GetWithContext(ctx context.Context, url string)(res *http.Resp
 		return
 	}
 	if res.StatusCode != http.StatusOK {
+		if res.StatusCode != http.StatusNotModified {
+			d, _ := io.ReadAll(res.Body)
+			loger.Errorf("github api request err: %s: %s", res.Status, string(d))
+		}
 		res.Body.Close()
+		if eok && res.StatusCode == http.StatusNotModified {
+			loger.Debugf("Cached %q data", url)
+			res.Body = bytesReadCloser{bytes.NewReader(cache.Body)}
+			return
+		}
 		if res.StatusCode != http.StatusNoContent {
 			err = &StatusCodeErr{ Code: res.StatusCode }
 		}
+		return
+	}
+	if etag, modTime := res.Header.Get("Etag"), res.Header.Get("Last-Modified");
+		len(etag) > 0 || len(modTime) > 0 {
+		defer res.Body.Close()
+		var data []byte
+		if data, err = io.ReadAll(res.Body); err != nil {
+			return
+		}
+		res.Body = bytesReadCloser{bytes.NewReader(data)}
+		c.getChMux.Lock()
+		c.getCache[url] = resCache{
+			Etag: etag,
+			ModTime: modTime,
+			Body: data,
+		}
+		c.getChMux.Unlock()
+		loger.Debugf("Cache %q with [etag=%s;modTime=%s]", url, etag, modTime)
 	}
 	return
 }
