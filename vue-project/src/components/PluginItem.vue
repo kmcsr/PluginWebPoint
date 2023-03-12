@@ -113,7 +113,6 @@ defineProps({
 .description {
 	text-indent: 1rem;
 	font-family: monospace;
-	font-weight: 100;
 }
 
 .description>div {

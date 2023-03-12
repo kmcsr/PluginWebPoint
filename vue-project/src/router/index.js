@@ -39,6 +39,12 @@ const router = createRouter({
 			props: true,
 			name: 'Download',
 			component: DownloadView,
+		},
+		{
+			path: '/author/:author',
+			props: true,
+			name: 'Author',
+			component: () => import('../views/AuthorView.vue'),
 		}
 	]
 })

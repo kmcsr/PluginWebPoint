@@ -91,11 +91,17 @@ type PluginListOpt struct{
 	Offset   int      `json:"offset,omitempty"`
 }
 
+type Content struct{
+	Data []byte
+	URLPrefix string
+	DataURLPrefix string
+}
+
 type API interface {
 	GetPluginCounts(opt PluginListOpt)(count PluginCounts, err error)
 	GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err error)
 	GetPluginInfo(id string)(info *PluginInfo, err error)
-	GetPluginReadme(id string)(data []byte, prefix string, err error)
+	GetPluginReadme(id string)(content Content, err error)
 	GetPluginReleases(id string)(releases []*PluginRelease, err error)
 	GetPluginRelease(id string, tag Version)(release *PluginRelease, err error)
 	GetPluginReleaseAsset(id string, tag Version, filename string)(rc io.ReadSeekCloser, modTime time.Time, err error)
@@ -304,20 +310,22 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 	return
 }
 
-func (api *MySqlAPI)GetPluginReadme(id string)(data []byte, prefix string, err error){
+func (api *MySqlAPI)GetPluginReadme(id string)(content Content, err error){
 	var info *PluginInfo
 	if info, err = api.GetPluginInfo(id); err != nil {
 		return
 	}
 	if !info.GithubSync {
 		filename := filepath.Join(PLUGIN_DIR, id, "README.MD")
-		if data, err = os.ReadFile(filename); err != nil {
+		if content.Data, err = os.ReadFile(filename); err != nil {
 			return
 		}
 		return
 	}
-	// prefix only exists when fetching readme from github
-	prefix = info.Link
+	// prefixs only exists when fetching readme from github
+	content.URLPrefix, _ = url.JoinPath(info.Repo, "tree", info.RepoBranch, info.RepoSubdir)
+	content.DataURLPrefix, _ = url.JoinPath(info.Repo, "raw", info.RepoBranch, info.RepoSubdir)
+
 	var res *http.Response
 	baseurl, err := url.JoinPath("https://api.github.com", "repos",
 		info.GhRepoOwner, info.GhRepoName, "readme")
@@ -343,6 +351,8 @@ func (api *MySqlAPI)GetPluginReadme(id string)(data []byte, prefix string, err e
 		return
 	}
 	defer res.Body.Close()
+
+	var data []byte
 	if data, err = io.ReadAll(res.Body); err != nil {
 		return
 	}
@@ -365,7 +375,7 @@ func (api *MySqlAPI)GetPluginReadme(id string)(data []byte, prefix string, err e
 		err = fmt.Errorf("Unexpect content enocding %q, expect base64", payload.Encoding)
 		return
 	}
-	if data, err = base64.StdEncoding.DecodeString(payload.Content); err != nil {
+	if content.Data, err = base64.StdEncoding.DecodeString(payload.Content); err != nil {
 		return
 	}
 	return

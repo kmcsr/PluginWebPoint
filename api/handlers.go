@@ -128,7 +128,7 @@ func devPluginInfo(ctx iris.Context){
 func devPluginReadme(ctx iris.Context){
 	id := ctx.Params().GetString("id")
 	render, _ := ctx.URLParamBool("render")
-	body, prefix, err := Ins.GetPluginReadme(id)
+	content, err := Ins.GetPluginReadme(id)
 	if err != nil {
 		if err == ErrNotFound {
 			ctx.StopWithJSON(iris.StatusNotFound, NewErrResp("NotFound", err))
@@ -137,9 +137,12 @@ func devPluginReadme(ctx iris.Context){
 		ctx.StopWithJSON(iris.StatusInternalServerError, NewErrResp("ApiErr", err))
 		return
 	}
+	body := content.Data
 	if render {
 		body = RenderMarkdown(body, &Option{
-			URLPrefix: prefix,
+			URLPrefix: content.URLPrefix,
+			DataURLPrefix: content.DataURLPrefix,
+			HeadingIDPrefix: "~mdh@",
 		})
 	}
 	_, _ = ctx.Write(body)

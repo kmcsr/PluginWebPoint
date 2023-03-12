@@ -45,9 +45,9 @@ onUnmounted(() => {
 
 <template>
 	<main>
-		<p>
+		<pre>
 			<center>File will be download in {{remain}} sec...</center>
-		</p>
+		</pre>
 	</main>
 </template>
 

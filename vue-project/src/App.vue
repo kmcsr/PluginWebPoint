@@ -1,16 +1,17 @@
 <script setup>
-import { inject } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
 import WebBox from 'vue-material-design-icons/WebBox.vue'
-
-const $cookie = inject('$cookie')
-
-console.debug('$cookie:', $cookie)
 
 </script>
 
 <template>
 	<header id="header">
+		<div class="logo">
+			<b>LOGO required</b>
+		</div>
+		<div>
+			<a href="/about">About</a>
+		</div>
 		<div class="locale-changer">
 			<label for="i18n-lang-select">
 				<WebBox class="flex-box" size="2rem" />
@@ -44,11 +45,12 @@ console.debug('$cookie:', $cookie)
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	justify-content: flex-end;
 	width: 100%;
 	height: 3.5rem;
-	background: #e8e8e8;
-	z-index: 1;
+	padding: 0 1rem;
+	background: #fdfdfd;
+	box-shadow: 0 0 0.5rem #000a;
+	z-index: 10;
 }
 
 #body {
@@ -67,11 +69,15 @@ console.debug('$cookie:', $cookie)
 	background: #fcfbf4;
 }
 
+.logo {
+	margin-right: 1rem;
+}
+
 .locale-changer {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	margin-right: 1rem;
+	margin: 0 1rem;
 }
 
 .locale-changer>select {

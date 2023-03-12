@@ -4,7 +4,6 @@ go 1.19
 
 require (
 	github.com/go-sql-driver/mysql v1.7.0
-	github.com/gomarkdown/markdown v0.0.0-20230310225216-e92f2877bcce
 	github.com/kataras/iris/v12 v12.2.0-beta7
 	github.com/kmcsr/go-logger v1.1.1
 	github.com/microcosm-cc/bluemonday v1.0.22
@@ -22,6 +21,7 @@ require (
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/flosch/pongo2/v4 v4.0.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
+	github.com/gomarkdown/markdown v0.0.0-20230312001534-ae1a42e38ef1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/css v1.0.0 // indirect
 	github.com/iris-contrib/schema v0.0.6 // indirect
