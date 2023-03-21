@@ -32,7 +32,8 @@
 		"filename": "文件名",
 		"download_count": "下载量",
 		"size": "大小",
-		"ago": "前"
+		"ago": "前",
+		"published_at": "上传于"
 	},
 	"label": {
 		"information": "信息",

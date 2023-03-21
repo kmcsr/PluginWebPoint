@@ -9,9 +9,10 @@ import BriefcaseDownload from 'vue-material-design-icons/BriefcaseDownload.vue'
 import SyncSvg from 'vue-material-design-icons/Sync.vue'
 import Github from 'vue-material-design-icons/Github.vue'
 import LinkBox from 'vue-material-design-icons/LinkBox.vue'
+import DownloadBox from 'vue-material-design-icons/DownloadBox.vue'
 import LabelIcon from '../components/LabelIcon.vue'
 import SlideNav from '../components/SlideNav.vue'
-import { fmtSize, fmtTimestamp, sinceDate } from '../utils'
+import { fmtSize, fmtTimestamp, sinceDate, fmtDateTime } from '../utils'
 
 const props = defineProps({
 	'plugin': String
@@ -90,14 +91,14 @@ async function freshData(){
 
 function pluginDependUrl(id){
 	if(id === 'mcdreforged'){
-		return 'https://github.com/MCDReforged/PluginCatalogue'
+		return 'https://github.com/Fallen-Breath/MCDReforged'
 	}
 	return `/plugin/${id}`
 }
 
 onBeforeMount(() => {
 	if(props.plugin === 'mcdreforged'){
-		window.location.replace('https://github.com/MCDReforged/PluginCatalogue')
+		window.location.replace('https://github.com/Fallen-Breath/MCDReforged')
 		return
 	}
 })
@@ -177,7 +178,7 @@ onMounted(() => {
 					v-html="dataReadme === false?'<i>No readme :&lt;</i>' :(dataReadme || '<i>Loading ...</i>')">
 				</article>
 				<article v-else-if="navActive === 'depend'">
-					<h2>{{ $t('word.dependencies') }}:</h2>
+					<h2>{{ $t('word.dependencies') }}</h2>
 					<table v-if="data.dependencies">
 						<thead>
 							<th>ID</th>
@@ -199,25 +200,28 @@ onMounted(() => {
 					</div>
 				</article>
 				<article v-else-if="navActive === 'releases'">
-					<h2>{{ $t('word.releases') }}:</h2>
-					<table v-if="dataReleases">
-						<thead>
-							<th>{{ $t('word.filename') }}</th>
-							<th>{{ $t('word.size') }}</th>
-							<th>{{ $t('word.downloads') }}</th>
-						</thead>
-						<tbody>
-							<tr v-for="r in dataReleases">
-								<td>
-									<a :href="`/download/${r.id}/${r.tag}/${r.filename}`">
-										{{r.filename}}
-									</a>
-								</td>
-								<td>{{fmtSize(r.size)}}</td>
-								<td>{{r.downloads}}</td>
-							</tr>
-						</tbody>
-					</table>
+					<h2>{{ $t('word.releases') }}</h2>
+					<div v-if="dataReleases">
+						<div class="plugin-release" v-for="r in dataReleases">
+							<a :href="`/download/${r.id}/${r.tag}/${r.filename}`">
+								<DownloadBox class="flex-box release-download-icon" size="2rem"/>
+								<div class="release-type-box">
+									<div class="release-head">
+										<div class="release-filename">
+											<b>{{r.filename}}</b>
+										</div>
+										<div class="release-size">{{fmtSize(r.size)}}</div>
+									</div>
+									<div>
+										<div class="release-download">{{ $t('word.downloads') }} <b>{{r.downloads}}</b></div>
+										<div class="release-uploaded">{{ $t('word.published_at') }}
+											<b style="white-space:nowrap;">{{fmtDateTime(r.uploaded)}}</b>
+										</div>
+									</div>
+								</div>
+							</a>
+						</div>
+					</div>
 					<div v-else><i>{{ $t('message.no_release') }}</i></div>
 				</article>
 			</div>
@@ -309,12 +313,59 @@ th, td {
 	padding: 0.5rem;
 }
 
+.plugin-release {
+	width: 100%;
+	height: 4rem;
+	margin-bottom: 0.1rem;
+}
+
+.plugin-release>a {
+	display: flex;
+	flex-direction: row;
+	width: 100%;
+	height: 100%;
+	border-radius: 1rem;
+	padding: 0.5rem;
+	color: #000;
+}
+
+.plugin-release:hover>a {
+	background-color: #eee;
+}
+
+.plugin-release:active {
+
+}
+
+.release-type-box {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	width: 100%;
+	font-weight: 500;
+}
+
+.release-download-icon {
+	color: #00dc6e;
+	margin-right: 0.5rem;
+}
+
+.release-size {
+	margin-left: 0.5rem;
+}
+
 @media (max-width: 54.2rem){
 	.plugin-box {
 		flex-direction: column;
 	}
 	.plugin-section-box {
 		width: 100%;
+	}
+	.plugin-release {
+		height: 9rem;
+	}
+	.release-type-box {
+		flex-direction: column;
 	}
 }
 

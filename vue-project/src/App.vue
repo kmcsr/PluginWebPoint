@@ -9,9 +9,9 @@ import WebBox from 'vue-material-design-icons/WebBox.vue'
 		<div class="logo">
 			<b>LOGO required</b>
 		</div>
-		<div>
+		<nav class="header-nav">
 			<a href="/about">About</a>
-		</div>
+		</nav>
 		<div class="locale-changer">
 			<label for="i18n-lang-select">
 				<WebBox class="flex-box" size="2rem" />
@@ -70,14 +70,29 @@ import WebBox from 'vue-material-design-icons/WebBox.vue'
 }
 
 .logo {
-	margin-right: 1rem;
+	/*margin-right: 1rem;*/
+}
+
+.header-nav {
+	display: flex;
+	flex-direction: row;
+	height: 100%;
+	margin: 0 0.5rem;
+}
+
+.header-nav>a {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 100%;
+	padding: 0 0.5rem;
 }
 
 .locale-changer {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	margin: 0 1rem;
+	margin-right: 1rem;
 }
 
 .locale-changer>select {

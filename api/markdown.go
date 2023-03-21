@@ -52,7 +52,7 @@ func (o *Option)exec(n ast.Node)(ast.Node){
 				Children: []ast.Node{
 					&ast.Text{
 						Leaf: ast.Leaf{
-							Literal: ([]byte)("+"),
+							Literal: ([]byte)("#"),
 						},
 					},
 				},

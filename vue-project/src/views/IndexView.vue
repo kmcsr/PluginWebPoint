@@ -16,6 +16,8 @@ const pluginListHead = ref(null)
 const pinHead = ref(false)
 const errorText = ref(null)
 
+const pageSlot = ref(5)
+
 const {
 	data,
 	searching,
@@ -38,7 +40,7 @@ const {
 		sortBy: ref(q.s || 'downloads'),
 		reverseSort: ref(q.reversed === 'true'),
 		listCurrentPage: ref(Number.parseInt(q.pg) || 1),
-		listPageSize: ref(Number.parseInt(q.ps) || 5),
+		listPageSize: ref(Number.parseInt(q.ps) || 10),
 	}
 })()
 
@@ -256,8 +258,8 @@ onUnmounted(() => {
 						v-model:page="listCurrentPage"
 						v-model:page-size="listPageSize"
 						:page-count="totalPage"
-						:page-slot="6"
-						:page-sizes="[5, 15, 50, 100]"
+						:page-slot="pageSlot"
+						:page-sizes="[10, 15, 50, 100]"
 						show-size-picker
 					/>
 				</div>
@@ -544,7 +546,7 @@ onUnmounted(() => {
 		margin-right: 0;
 	}
 	.plugin-list>*:first-child {
-		margin-top: 5.2rem;
+		margin-top: 5.7rem;
 		min-height: 12rem;
 	}
 	.plugin-list-head-pin {
@@ -552,6 +554,7 @@ onUnmounted(() => {
 	}
 	.plugin-head-up {
 		flex-direction: column;
+		padding-top: 0.5rem;
 	}
 	.plugin-list-searchbox {
 		width: 100%;

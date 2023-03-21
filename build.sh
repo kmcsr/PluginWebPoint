@@ -7,31 +7,41 @@ DEV="${DEV}"
 NPM_DIR=vue-project
 
 function build_web(){
+	_old_pwd="${PWD}"
 	cd "$NPM_DIR"
 	if [[ "$DEBUG" == true ]]; then
 		NODE_ENV=development npm run build_dev || return $?
 	else
 		npm run build || return $?
 	fi
-
-	cd ..
-	rm -rf "./dist"
-	cp -a "${NPM_DIR}/dist" ./dist
+	cd "${_old_pwd}"
 	return $?
 }
 
 function build_watch(){
+	_old_pwd="${PWD}"
 	cd "$NPM_DIR"
-	NODE_ENV=development exec npm run build_watch
+	NODE_ENV=development exec npm run build_watch || return $?
+	cd "${_old_pwd}"
+	return $?
 }
 
 function build_app(){
-	CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build -o ./output/plugin_web_point .
+	rm -rf "./cmds/plugin_web_point/dist"
+	cp -a "${NPM_DIR}/dist" "./cmds/plugin_web_point/dist"
+
+	CGO_ENABLED=0 go build -o ./output/plugin_web_point ./cmds/plugin_web_point
+	return $?
+}
+
+function build_handle(){
+	_handle=$1
+	CGO_ENABLED=0 go build -o "./output/pwp_${_handle}" "./handlers/${_handle}"
 	return $?
 }
 
 function run_app(){
-	go run . "$@"
+	go run ./cmds/dev "$@"
 	return $?
 }
 
@@ -71,11 +81,15 @@ build_web || exit $?
 if [[ "$WEB_ONLY" != true ]]; then
 	if [[ "$RUN" == true ]]; then
 		if [[ "$DEBUG" == true ]]; then
-			run_app -debug || exit $?
+			run_app -debug
 		else
-			run_app || exit $?
+			run_app
 		fi
-	else
-		build_app || exit $?
+		exit $?
 	fi
+	echo '==> Building app'
+	GOARCH=amd64 GOOS=linux build_app || exit $?
+	echo '==> Building handle dev'
+	GOARCH=amd64 GOOS=linux build_handle dev
+	echo '==> Done'
 fi

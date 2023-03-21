@@ -21,21 +21,27 @@ import (
 	"time"
 
 	"github.com/kmcsr/go-logger"
-	"github.com/kmcsr/go-logger/golog"
-	"github.com/kmcsr/PluginWebPoint/api"
+	"github.com/kmcsr/go-logger/logrus"
+	// "github.com/kmcsr/PluginWebPoint/api"
+	// "github.com/kmcsr/PluginWebPoint/api/mysqlimpl"
 )
 
 var loger logger.Logger = getLogger()
 
+var (
+	DEBUG bool = false
+	host string = ""
+	port int = 80
+)
+
 func getLogger()(loger logger.Logger){
-	loger = golog.Logger
+	loger = logrus.Logger
 	if DEBUG = os.Getenv("DEBUG") == "true"; DEBUG {
 		loger.SetLevel(logger.TraceLevel)
 		loger.Debug("Debug mode on")
 	}else{
 		loger.SetLevel(logger.InfoLevel)
 	}
-	golog.Unwrap(loger).Logger.SetTimeFormat("2006-01-02 15:04:05.000:")
 	return
 }
 
@@ -44,20 +50,14 @@ var dist embed.FS
 
 var startTime = time.Now()
 
-var (
-	DEBUG bool = false
-	host string = ""
-	port int = 80
-)
-
 func main(){
 
-	username := os.Getenv("DB_USER")
-	passwd := os.Getenv("DB_PASSWD")
-	address := os.Getenv("DB_ADDR")
-	database := os.Getenv("DB_NAME")
+	// username := os.Getenv("DB_USER")
+	// passwd := os.Getenv("DB_PASSWD")
+	// address := os.Getenv("DB_ADDR")
+	// database := os.Getenv("DB_NAME")
 
-	api.Ins = api.NewMySqlAPI(username, passwd, address, database)
+	// apiIns = mysqlimpl.NewMySqlAPI(username, passwd, address, database)
 
 	var (
 		err error
@@ -73,7 +73,6 @@ func main(){
 		indexFile = fd.(io.ReadSeeker)
 	}
 
-	http.Handle("/dev/", http.StripPrefix("/dev", api.GetDevAPIHandler()))
 	http.Handle("/assets/", http.StripPrefix("/assets", NewConstFileServer(assetsFS, time.Time{})))
 	http.Handle("/", HandleConstData(indexFile, time.Time{}, "index.html"))
 
@@ -86,7 +85,7 @@ func main(){
 
 	done := make(chan struct{}, 0)
 	sigch := make(chan os.Signal, 1)
-	signal.Notify(sigch, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigch, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM)
 
 	go func(){
 		defer close(done)
@@ -97,9 +96,8 @@ func main(){
 	}()
 
 	select {
-	case sig := <-sigch:
+	case <-sigch:
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second * 3)
-		_ = sig // TODO: reload config
 		server.Shutdown(ctx)
 		cancel()
 	case <-done:

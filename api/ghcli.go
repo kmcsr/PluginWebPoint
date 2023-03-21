@@ -15,8 +15,6 @@ import (
 	"time"
 )
 
-var githubCli = initGithubCli()
-
 type GToken struct{
 	Token string `json:"access_token"`
 	Typ   string `json:"token_type"`
@@ -33,7 +31,7 @@ type resCache struct{
 	Body []byte
 }
 
-type ghClient struct{
+type GhClient struct{
 	cli *http.Client
 	appId     string
 	appSecret string
@@ -43,8 +41,17 @@ type ghClient struct{
 	getChMux sync.RWMutex
 }
 
-func initGithubCli()(c *ghClient){
-	c = &ghClient{
+var GithubCli = &GhClient{
+	cli: &http.Client{
+		Timeout: time.Second * 5,
+	},
+	appId: os.Getenv("GH_CLI_ID"),
+	appSecret: os.Getenv("GH_CLI_SEC"),
+	getCache: make(map[string]resCache),
+}
+
+func InitGithubCli()(c *GhClient){
+	c = &GhClient{
 		cli: &http.Client{
 			Timeout: time.Second * 5,
 		},
@@ -74,7 +81,7 @@ func initGithubCli()(c *ghClient){
 	return
 }
 
-func (c *ghClient)pingGhApi()(err error){
+func (c *GhClient)pingGhApi()(err error){
 	const entryPoint = "https://api.github.com/"
 
 	var res *http.Response
@@ -91,7 +98,7 @@ func (c *ghClient)pingGhApi()(err error){
 	return
 }
 
-func (c *ghClient)ghOAuth(callback func(code string, uri string)(error))(err error){
+func (c *GhClient)ghOAuth(callback func(code string, uri string)(error))(err error){
 	const codePoint = "https://github.com/login/device/code"
 	const pollPoint = "https://github.com/login/oauth/access_token"
 
@@ -184,7 +191,7 @@ func (c *ghClient)ghOAuth(callback func(code string, uri string)(error))(err err
 	return
 }
 
-func (c *ghClient)Get(url string)(*http.Response, error){
+func (c *GhClient)Get(url string)(*http.Response, error){
 	return c.GetWithContext(context.Background(), url)
 }
 
@@ -194,7 +201,7 @@ type bytesReadCloser struct{
 
 func (bytesReadCloser)Close()(error){ return nil }
 
-func (c *ghClient)GetWithContext(ctx context.Context, url string)(res *http.Response, err error){
+func (c *GhClient)GetWithContext(ctx context.Context, url string)(res *http.Response, err error){
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return

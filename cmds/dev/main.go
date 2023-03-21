@@ -2,20 +2,24 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/kmcsr/go-logger"
 	"github.com/kmcsr/go-logger/golog"
-	"github.com/kmcsr/PluginWebPoint/api"
 )
 
 var loger logger.Logger = getLogger()
@@ -23,7 +27,7 @@ var loger logger.Logger = getLogger()
 func getLogger()(loger logger.Logger){
 	loger = golog.Logger
 	loger.SetLevel(logger.TraceLevel)
-	loger.Trace("Debug mode on")
+	loger.Debug("Debug mode on")
 	golog.Unwrap(loger).Logger.SetTimeFormat("2006-01-02 15:04:05.000:")
 	return
 }
@@ -37,18 +41,62 @@ var (
 func main(){
 	username := os.Getenv("DB_USER")
 	if username == "" {
-		username = "root"
+		os.Setenv("DB_USER", "root")
 	}
-	passwd := os.Getenv("DB_PASSWD")
-	address := os.Getenv("DB_ADDR")
+	// passwd := os.Getenv("DB_PASSWD")
+	// address := os.Getenv("DB_ADDR")
 	database := os.Getenv("DB_NAME")
 	if database == "" {
-		database = "databasename"
+		os.Setenv("DB_NAME", "databasename")
 	}
 
-	api.Ins = api.NewMySqlAPI(username, passwd, address, database)
+	apihostportch := make(chan string, 1)
 
-	http.Handle("/dev/", http.StripPrefix("/dev", api.GetDevAPIHandler()))
+	cmdctx, cancel := context.WithCancel(context.Background())
+	apicmd := exec.CommandContext(cmdctx, "go", "run", "./handlers/dev", "127.0.0.1:")
+	defer func(cancel context.CancelFunc){
+		cancel()
+		if apicmd.Process != nil {
+			apicmd.Wait()
+		}
+	}(cancel)
+
+	go func(){
+		apiout, err := apicmd.StdoutPipe()
+		if err != nil {
+			loger.Fatalf("Cannot make stdout pipe for api: %v", err)
+		}
+		apicmd.Stderr = apicmd.Stdout
+		if err = apicmd.Start(); err != nil {
+			loger.Fatalf("Cannot start api: %v", err)
+		}
+		sc := bufio.NewScanner(apiout)
+		waitingflag := true
+		for sc.Scan() {
+			txt := sc.Text()
+			os.Stdout.Write(([]byte)(txt + "\n"))
+			if waitingflag {
+				const serverListeneingAtPrefix = "API]: Server listening at "
+				if i := strings.Index(txt, serverListeneingAtPrefix); i >= 0 {
+					waitingflag = false
+					hostport := txt[i + len(serverListeneingAtPrefix):]
+					apihostportch <- hostport
+				}
+			}
+		}
+		if err = apicmd.Wait(); err != nil {
+			loger.Fatalf("Api process exited with error: %v", err)
+		}
+	}()
+
+	hostport := <-apihostportch
+	loger.Infof("Detected api host-port: <%s>", hostport)
+	apiurl, err := url.Parse("http://" + hostport)
+	if err != nil {
+		loger.Fatalf("Cannot parse api host-port: %v", err)
+	}
+
+	http.Handle("/dev/", http.StripPrefix("/dev", httputil.NewSingleHostReverseProxy(apiurl)))
 	http.Handle("/assets/", http.StripPrefix("/assets",
 		http.FileServer(http.Dir(filepath.Join(Target, "assets")))))
 	http.Handle("/", (http.HandlerFunc)(func(rw http.ResponseWriter, req *http.Request){

@@ -49,7 +49,7 @@ func initDB()(DB *sql.DB){
 	loger.Debug("Connecting to db %s@%s/%s", username, address, database)
 
 	var err error
-	if DB, err = sql.Open("mysql", fmt.Sprintf("%s:%s@%s/%s", username, passwd, address, database)); err != nil {
+	if DB, err = sql.Open("mysql", fmt.Sprintf("%s:%s@%s/%s?parseTime=true", username, passwd, address, database)); err != nil {
 		loger.Fatalf("Cannot connect to database: %v", err)
 	}
 	DB.SetConnMaxLifetime(time.Minute * 3)
@@ -257,6 +257,7 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 			"`label_tool`=?," +
 			"`label_management`=?," +
 			"`label_api`=?," +
+			"`lastUpdate`=?," +
 			"`ghRepoOwner`=?," +
 			"`ghRepoName`=?," +
 			"`last_sync`=?" +
@@ -268,7 +269,8 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 		"`github_url`)" +
 		" VALUES (?,?,TRUE,?,?,?,?,?,?)"
 
-	now := time.Now().Format("2006-01-02 15:04:05")
+	nowt := time.Now()
+	now := nowt.Format("2006-01-02 15:04:05")
 
 	sort.Strings(meta.Authors)
 	var (
@@ -288,6 +290,15 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 	if !strings.HasPrefix(info.Repo, "https://github.com/") {
 		err = fmt.Errorf("Unexpect repo link (missing gh prefix): %q", info.Repo)
 		return
+	}
+	var lastUpdate time.Time
+	{
+		for _, r := range releases.Releases {
+			t := r.CreateAt
+			if t.After(lastUpdate) {
+				lastUpdate = t
+			}
+		}
 	}
 	var ghRepoOwner, ghRepoName string
 	{
@@ -321,12 +332,22 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 	defer conn.Close()
 
 	var flag sql.NullBool
-	if err = conn.QueryRowContext(ctx, "SELECT `github_sync` FROM plugins WHERE `id`=?", info.Id).Scan(&flag); err != nil && err != sql.ErrNoRows {
+	var lastUpdateOpt time.Time
+	if err = conn.QueryRowContext(ctx, "SELECT `github_sync`," +
+		"CONVERT_TZ(`lastUpdate`,@@session.time_zone,'+00:00') AS `utc_lastUpdate`" +
+		" FROM plugins WHERE `id`=?", info.Id).Scan(&flag, &lastUpdateOpt); err != nil && err != sql.ErrNoRows {
 		return
 	}
 	if flag.Valid && !flag.Bool {
 		loger.Debugf("Plugin %s is not synced from github", info.Id)
 		return
+	}
+	if lastUpdate.IsZero() {
+		if !lastUpdateOpt.IsZero() {
+			lastUpdate = lastUpdateOpt
+		}else{
+			lastUpdate = nowt
+		}
 	}
 
 	tx, err := conn.BeginTx(ctx, nil)
@@ -341,7 +362,7 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 			strings.Join(meta.Authors, ","), desc, desc_zhCN,
 			info.Repo, info.Branch, info.RelatedPath, link,
 			info.Labels.HasInformation(), info.Labels.HasTool(), info.Labels.HasManagement(), info.Labels.HasAPI(),
-			ghRepoOwner, ghRepoName, now, info.Id); err != nil {
+			lastUpdate.Format("2006-01-02 15:04:05"), ghRepoOwner, ghRepoName, now, info.Id); err != nil {
 			return
 		}
 		if _, err = ExecTx(tx, removeDepenceCmd, info.Id); err != nil {
@@ -353,7 +374,7 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 			strings.Join(meta.Authors, ","), desc, desc_zhCN,
 			info.Repo, info.Branch, info.RelatedPath, link,
 			info.Labels.HasInformation(), info.Labels.HasTool(), info.Labels.HasManagement(), info.Labels.HasAPI(),
-			now, now, ghRepoOwner, ghRepoName, now); err != nil {
+			now, lastUpdate.Format("2006-01-02 15:04:05"), ghRepoOwner, ghRepoName, now); err != nil {
 			return
 		}
 	}

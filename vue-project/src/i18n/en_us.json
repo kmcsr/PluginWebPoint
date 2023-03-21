@@ -32,7 +32,8 @@
 		"filename": "Filename",
 		"size": "Size",
 		"download_count": "Downloads",
-		"ago": "ago"
+		"ago": "ago",
+		"published_at": "Published at"
 	},
 	"label": {
 		"information": "Information",
