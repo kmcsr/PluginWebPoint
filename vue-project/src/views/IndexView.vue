@@ -155,7 +155,7 @@ const refreshDelayed = (function(){
 			pending(true)
 			return
 		}
-		while(await Promise.race([new Promise((re)=>{ pending = re }), _wait(700)]));
+		while(await Promise.race([new Promise((re)=>{ pending = re }), _wait(600)]));
 		pending = null
 		return await refreshNoDelay()
 	}

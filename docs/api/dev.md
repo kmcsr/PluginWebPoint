@@ -37,7 +37,7 @@ The charset is `utf8`
 		```js
 		{
 			"status": "ok", // should always be ok
-			"time": String, // Access time in UTC time zone. Formatted
+			"time": String, // Access time in UTC time zone.
 			"version": Number, // The developing version, should be a non-negative integer
 		}
 		```
@@ -89,8 +89,8 @@ The charset is `utf8`
 					"authors": [String], // The authors of the plugin, in a string list
 					"desc": String | undefined, // The plugin's description, mostly in English, could be none
 					"desc_zhCN": String | undefined, // The plugin's description in Chinese, could be none
-					"createAt": String, // When is the plugin be added into the database. Formatted
-					"lastUpdate": String, // The plugin last update time, not used now. Formatted
+					"createAt": String, // When is the plugin be added into the database.
+					"lastUpdate": String, // The plugin last release time. If it's undefined (no any release exists) then it will as same as `createAt`.
 					"labels": { // is this plugin labeled by the key, maybe undefined
 						"information": Boolean | undefined,
 						"tool": Boolean | undefined,
@@ -99,7 +99,7 @@ The charset is `utf8`
 					},
 					"downloads": Number, // The total download count of the plugin releases, synced from github, maybe delayed
 					"github_sync": Boolean, // Is the plugin synced from github or not
-					"last_sync": String | undefined, // Last time it synced and updated from github. Maybe undefined if it's not synced from github. Formatted
+					"last_sync": String | undefined, // Last time it synced and updated from github. Maybe undefined if it's not synced from github.
 				}
 			]
 		}
@@ -151,8 +151,8 @@ The charset is `utf8`
 				"authors": [String], // The authors of the plugin, in a string list
 				"desc": String | undefined, // The plugin's description, mostly in English, could be none
 				"desc_zhCN": String | undefined, // The plugin's description in Chinese, could be none
-				"createAt": String, // When is the plugin be added into the database. Formatted
-				"lastUpdate": String, // The plugin last update time, not used now. Formatted
+				"createAt": String, // When is the plugin be added into the database.
+				"lastUpdate": String, // The plugin last release time. If it's undefined (no any release exists) then it will as same as `createAt`.
 				"repo": String, // Repo link for the plugin
 				"link": String, // Main page link
 				"labels": { // is this plugin labeled by the key, maybe undefined
@@ -162,13 +162,16 @@ The charset is `utf8`
 					"api": Boolean | undefined,
 				},
 				"downloads": Number, // The total download count of the plugin releases, synced from github, maybe delayed
-				"dependencies": { // The dependent map
+				"dependencies": { // The plugin dependent map
 					"<plugin id>": "<version condition>", // for version condition, please see <https://mcdreforged.readthedocs.io/en/latest/plugin_dev/metadata.html#dependencies>
+				},
+				"requirements": { // The python package requirement map
+					"<package name>": "<version condition>",
 				},
 				"github_sync": Boolean, // Is the plugin synced from github or not
 				"ghRepoOwner": String | undefined, // The github repo owner. Maybe undefined if it's not synced from github
 				"ghRepoName": String | undefined, // The github repo name. Maybe undefined
-				"last_sync": String | undefined, // Last time it synced and updated from github. Maybe undefined. Formatted.
+				"last_sync": String | undefined, // Last time it synced and updated from github. Maybe undefined.
 			}
 		}
 		```

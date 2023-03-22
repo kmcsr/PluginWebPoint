@@ -89,8 +89,8 @@
 					"authors": [String], // 插件作者, 为一个字符串列表
 					"desc": String | undefined, // 插件描述, 大部分为英文版本, 可能未定义
 					"desc_zhCN": String | undefined, // 插件中文描述, 可能未定义
-					"createAt": String, // 格式化后插件加入数据库的时间
-					"lastUpdate": String, // 格式化后插件被修改的时间, 目前没有明确定义
+					"createAt": String, // 插件加入数据库的时间
+					"lastUpdate": String, // 插件最后一次发布新版本的时间. 若未定义, 则同上`createAt`
 					"labels": { // 插件标签列表
 						"information": Boolean | undefined,
 						"tool": Boolean | undefined,
@@ -99,7 +99,7 @@
 					},
 					"downloads": Number, // 插件总下载数量, 由于从github同步, 所以可能会有延迟
 					"github_sync": Boolean, // 插件数据是否是从Github仓库同步而来
-					"last_sync": String | undefined, // 格式化后插件最后一次从Github同步的时间
+					"last_sync": String | undefined, // 插件最后一次从Github同步的时间
 				}
 			]
 		}
@@ -151,8 +151,8 @@
 				"authors": [String], // 插件作者, 为一个字符串列表
 				"desc": String | undefined, // 插件描述, 大部分为英文版本, 可能未定义
 				"desc_zhCN": String | undefined, // 插件中文描述, 可能未定义
-				"createAt": String, // 格式化后插件加入数据库的时间
-				"lastUpdate": String, // 格式化后插件被修改的时间, 目前没有明确定义
+				"createAt": String, // 插件加入数据库的时间
+				"lastUpdate": String, // 插件最后一次发布新版本的时间. 若未定义, 则同上`createAt`
 				"repo": String, // Github仓库地址
 				"link": String, // Github插件主页
 				"labels": { // 插件标签列表
@@ -165,10 +165,13 @@
 				"dependencies": { // 插件依赖列表
 					"<plugin id>": "<version condition>", // 见 <https://mcdreforged.readthedocs.io/en/latest/plugin_dev/metadata.html#dependencies>
 				},
+				"requirements": { // Python包依赖列表
+					"<package name>": "<version condition>",
+				},
 				"github_sync": Boolean, // 插件数据是否是从Github仓库同步而来
 				"ghRepoOwner": String | undefined, // Github仓库所有者
 				"ghRepoName": String | undefined, // Github仓库名称
-				"last_sync": String | undefined, // 格式化后插件最后一次从Github同步的时间
+				"last_sync": String | undefined, // 插件最后一次从Github同步的时间
 			}
 		}
 		```

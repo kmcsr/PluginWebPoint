@@ -14,7 +14,9 @@
 		"totalDownload": "Total download",
 		"repo": "Repository",
 		"main_page": "Main Page",
-		"no_release": "No release file"
+		"no_release": "No release file",
+		"click_to_copy": "Click to copy to the clipboard",
+		"copy_successed": "Copy successed"
 	},
 	"word": {
 		"filters": "Filters",
@@ -28,6 +30,9 @@
 		"links": "Links",
 		"readme": "Readme",
 		"dependencies": "Dependencies",
+		"requirements": "Python Package Requirements",
+		"install_cmd": "Requirements Install Command",
+		"require": "Require",
 		"releases": "Release files",
 		"filename": "Filename",
 		"size": "Size",

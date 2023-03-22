@@ -1,5 +1,5 @@
 <script setup>
-import { defineProps, onBeforeMount, onMounted, ref } from 'vue'
+import { onBeforeMount, onMounted, ref, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useRequest } from 'vue-request'
 import { useI18n } from 'vue-i18n'
@@ -12,6 +12,7 @@ import LinkBox from 'vue-material-design-icons/LinkBox.vue'
 import DownloadBox from 'vue-material-design-icons/DownloadBox.vue'
 import LabelIcon from '../components/LabelIcon.vue'
 import SlideNav from '../components/SlideNav.vue'
+import CopyableText from '../components/CopyableText.vue'
 import { fmtSize, fmtTimestamp, sinceDate, fmtDateTime } from '../utils'
 
 const props = defineProps({
@@ -84,6 +85,10 @@ const { data: dataReadme, run: getPluginReadme } = useRequest(async () => {
 const { data: dataReleases, run: getPluginReleases } = useRequest(async () => {
 	return (await axios.get(`/dev/plugin/${props.plugin}/releases`)).data.data
 })
+
+const requireInstallCmd = computed(() => ((data.value && data.value.requirements) ? 
+	("pip3 install " + Object.entries(data.value.requirements).map(([id, cond])=>`'${id}${cond}'`).join(' '))
+	: ""))
 
 async function freshData(){
 	return await Promise.all([ getPluginInfo(), getPluginReadme(), getPluginReleases() ])
@@ -178,23 +183,50 @@ onMounted(() => {
 					v-html="dataReadme === false?'<i>No readme :&lt;</i>' :(dataReadme || '<i>Loading ...</i>')">
 				</article>
 				<article v-else-if="navActive === 'depend'">
-					<h2>{{ $t('word.dependencies') }}</h2>
-					<table v-if="data.dependencies">
-						<thead>
-							<th>ID</th>
-							<th>Tag</th>
-						</thead>
-						<tbody>
-							<tr v-for="[id, cond] in Object.entries(data.dependencies)">
-								<td>
-									<a :href="pluginDependUrl(id)">
-										{{id}}
-									</a>
-								</td>
-								<td>{{cond}}</td>
-							</tr>
-						</tbody>
-					</table>
+					<div v-if="data.dependencies || data.requirements">
+						<div v-if="data.dependencies">
+							<h2>{{ $t('word.dependencies') }}</h2>
+							<hr style="margin-bottom:0.5rem;"/>
+							<table style="margin-bottom: 1rem">
+								<thead>
+									<th>ID</th>
+									<th>Tag</th>
+								</thead>
+								<tbody>
+									<tr v-for="[id, cond] in Object.entries(data.dependencies)">
+										<td>
+											<a :href="pluginDependUrl(id)">
+												{{id}}
+											</a>
+										</td>
+										<td>{{cond}}</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+						<div v-if="data.requirements">
+							<h2>{{ $t('word.requirements') }}</h2>
+							<hr style="margin-bottom:0.5rem;"/>
+							<h3>{{ $t('word.install_cmd') }}</h3>
+							<CopyableText :text="requireInstallCmd"/>
+							<table>
+								<thead>
+									<th>Name</th>
+									<th>{{ $t('word.require') }}</th>
+								</thead>
+								<tbody>
+									<tr v-for="[id, cond] in Object.entries(data.requirements)">
+										<td>
+											<a :href="`https://pypi.org/project/${id}`">
+												{{id}}
+											</a>
+										</td>
+										<td>{{cond}}</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
 					<div v-else>
 						No dependencies
 					</div>
@@ -256,7 +288,7 @@ onMounted(() => {
 }
 
 .plugin-main-box {
-	max-width: 100%;
+	max-width: calc(100% - 21rem);
 	width: 52rem;
 	margin-top: 1rem;
 	margin-bottom: 5rem;
@@ -305,7 +337,7 @@ onMounted(() => {
 }
 
 th, td {
-	border: 1px solid #000;
+	border: 0.05rem solid #000;
 	padding: 0.5rem;
 }
 
@@ -359,6 +391,10 @@ th, td {
 		flex-direction: column;
 	}
 	.plugin-section-box {
+		width: 100%;
+	}
+	.plugin-main-box {
+		max-width: 100%;
 		width: 100%;
 	}
 	.plugin-release {

@@ -2,8 +2,10 @@
 @import './github-markdown.css';
 
 #app {
+	width: 100vw;
+	min-height: 100vh;
 	margin: 0 auto;
-
+	padding-bottom: 5rem;
 	font-weight: normal;
 }
 

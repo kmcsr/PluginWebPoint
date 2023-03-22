@@ -176,34 +176,37 @@ func VersionCondFromString(s string)(v VersionCond, err error){
 	v.Major = -1
 	v.Minor = -1
 	v.Patch = -1
-	switch b := s[0]; b {
-	case '<', '>':
+	v.Cond = EQ
+	switch s[0] {
+	case '=':
 		if s[1] == '=' {
-			if b == '<'{
-				v.Cond = LE
-			}else{
-				v.Cond = GE
-			}
 			s = s[2:]
-			break
+		}else{
+			s = s[1:]
 		}
-		fallthrough
-	case '^', '~', '=':
-		switch b {
-		case '=':
-			v.Cond = EQ
-		case '^':
-			v.Cond = EX
-		case '~':
-			v.Cond = TD
-		case '<':
+		v.Cond = EQ
+	case '^':
+		s = s[1:]
+		v.Cond = EX
+	case '~':
+		s = s[1:]
+		v.Cond = TD
+	case '<':
+		if s[1] == '=' {
+			s = s[2:]
+			v.Cond = LE
+		}else{
+			s = s[1:]
 			v.Cond = LT
-		case '>':
+		}
+	case '>':
+		if s[1] == '=' {
+			s = s[2:]
+			v.Cond = GE
+		}else{
+			s = s[1:]
 			v.Cond = GT
 		}
-		s = s[1:]
-	default:
-		v.Cond = EQ
 	}
 	if !VersionRe.MatchString(s) {
 		err = fmt.Errorf("Format error for version %q, not match version regexp", s)

@@ -37,6 +37,7 @@ type PluginLabels struct {
 }
 
 type DependMap map[string]VersionCond
+type RequireMap map[string]string
 
 type PluginInfo struct {
 	Id           string       `json:"id"`
@@ -54,6 +55,7 @@ type PluginInfo struct {
 	Labels       PluginLabels `json:"labels"`
 	Downloads    int64        `json:"downloads"`
 	Dependencies DependMap    `json:"dependencies,omitempty"`
+	Requirements RequireMap   `json:"requirements,omitempty"`
 	GithubSync   bool         `json:"github_sync"`
 	GhRepoOwner  string       `json:"ghRepoOwner,omitempty"`
 	GhRepoName   string       `json:"ghRepoName,omitempty"`

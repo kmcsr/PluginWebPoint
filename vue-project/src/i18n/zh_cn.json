@@ -14,7 +14,9 @@
 		"totalDownload": "下载总数",
 		"repo": "仓库",
 		"main_page": "主页",
-		"no_release": "没有已发布的文件"
+		"no_release": "没有已发布的文件",
+		"click_to_copy": "点击复制到剪切板",
+		"copy_successed": "复制成功"
 	},
 	"word": {
 		"filters": "过滤器",
@@ -28,6 +30,9 @@
 		"links": "链接",
 		"readme": "介绍",
 		"dependencies": "依赖",
+		"requirements": "需要的Python包",
+		"install_cmd": "依赖安装指令",
+		"require": "需求",
 		"releases": "发布文件",
 		"filename": "文件名",
 		"download_count": "下载量",

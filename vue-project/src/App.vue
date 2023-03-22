@@ -54,7 +54,6 @@ import WebBox from 'vue-material-design-icons/WebBox.vue'
 }
 
 #body {
-	margin-bottom: 5rem;
   padding: 0 0.8rem;
   overflow: scroll;
 }
@@ -63,7 +62,7 @@ import WebBox from 'vue-material-design-icons/WebBox.vue'
 	width: 100%;
 	height: 5rem;
 	padding: 0.4rem;
-	position: fixed;
+	position: absolute;
 	left: 0;
 	bottom: 0;
 	background: #fcfbf4;

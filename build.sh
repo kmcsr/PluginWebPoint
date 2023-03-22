@@ -70,7 +70,7 @@ cd $(dirname $0)
 if [[ "$DEV" == true ]]; then
 	build_watch &
 	pid=$!
-	go run ./dev/
+	go run ./cmds/dev/
 	_e=$?
 	kill -s SIGINT "$pid"
 	exit $_e

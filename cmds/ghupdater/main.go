@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -23,6 +24,8 @@ import (
 	"github.com/kmcsr/go-logger/logrus"
 	"github.com/kmcsr/PluginWebPoint/api"
 )
+
+var packageNameRe = regexp.MustCompile(`^[a-zA-Z_.-]+[a-zA-Z0-9_.-]*`)
 
 var loger logger.Logger = initLogger()
 
@@ -265,6 +268,9 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 	const removeDepenceCmd = "DELETE FROM plugin_dependencies WHERE `id`=?"
 	const insertDepenceCmd = "INSERT INTO plugin_dependencies (`id`,`target`,`tag`)" +
 		" VALUES (?,?,?)"
+	const removeRequireCmd = "DELETE FROM plugin_requirements WHERE `id`=?"
+	const insertRequireCmd = "INSERT INTO plugin_requirements (`id`,`target`,`tag`)" +
+		" VALUES (?,?,?)"
 	const insertReleaseCmd = "INSERT IGNORE INTO plugin_releases (`id`,`tag`,`enabled`,`stable`,`size`,`uploaded`,`filename`,`downloads`," +
 		"`github_url`)" +
 		" VALUES (?,?,TRUE,?,?,?,?,?,?)"
@@ -368,6 +374,9 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 		if _, err = ExecTx(tx, removeDepenceCmd, info.Id); err != nil {
 			return
 		}
+		if _, err = ExecTx(tx, removeRequireCmd, info.Id); err != nil {
+			return
+		}
 	}else{
 		loger.Infof("[%s] Insert into database", info.Id)
 		if _, err = ExecTx(tx, insertCmd, info.Id, meta.Name, !info.Disable, meta.Version,
@@ -380,6 +389,18 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 	}
 	for id, cond := range meta.Deps {
 		if _, err = ExecTx(tx, insertDepenceCmd, info.Id, id, cond); err != nil {
+			return
+		}
+	}
+	for _, req := range meta.Reqs {
+		loger.Debugf("Parsing requirement %q", req)
+		id := packageNameRe.FindString(req)
+		if len(id) == 0 {
+			loger.Warnf("Cannot parse python package requirement: %q", req)
+			continue
+		}
+		cond := strings.ReplaceAll(req[len(id):], " ", "")
+		if _, err = ExecTx(tx, insertRequireCmd, info.Id, id, cond); err != nil {
 			return
 		}
 	}

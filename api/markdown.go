@@ -49,13 +49,6 @@ func (o *Option)exec(n ast.Node)(ast.Node){
 		anchor := &ast.Link{
 			Container: ast.Container{
 				Parent: m,
-				Children: []ast.Node{
-					&ast.Text{
-						Leaf: ast.Leaf{
-							Literal: ([]byte)("#"),
-						},
-					},
-				},
 			},
 			Destination: ([]byte)("#" + o.HeadingIDPrefix + m.HeadingID + o.HeadingIDSuffix),
 			AdditionalAttributes: []string{`class="anchor"`},

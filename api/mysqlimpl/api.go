@@ -174,6 +174,7 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 		" ON a.`id`=b.`id` WHERE a.`id`=? AND a.`enabled`=TRUE" +
 		" GROUP BY a.`id`"
 	const queryDependenciesCmd = "SELECT `target`,`tag` FROM plugin_dependencies WHERE `id`=?"
+	const queryRequirementsCmd = "SELECT `target`,`tag` FROM plugin_requirements WHERE `id`=?"
 	var (
 		authors string
 	)
@@ -205,23 +206,45 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 	}
 	info.Authors = strings.Split(authors, ",")
 	info.Dependencies = make(DependMap, 3)
+	info.Requirements = make(RequireMap, 3)
 	var rows *sql.Rows
-	if rows, err = api.QueryContext(ctx, queryDependenciesCmd, id); err != nil {
-		return
-	}
-	defer rows.Close()
-	var (
-		pid string
-		cond VersionCond
-	)
-	for rows.Next() {
-		if err = rows.Scan(&pid, &cond); err != nil  {
+	{
+		if rows, err = api.QueryContext(ctx, queryDependenciesCmd, id); err != nil {
 			return
 		}
-		info.Dependencies[pid] = cond
+		defer rows.Close()
+		var (
+			pid string
+			cond VersionCond
+		)
+		for rows.Next() {
+			if err = rows.Scan(&pid, &cond); err != nil  {
+				return
+			}
+			info.Dependencies[pid] = cond
+		}
+		if err = rows.Err(); err != nil {
+			return
+		}
 	}
-	if err = rows.Err(); err != nil {
-		return
+	{
+		if rows, err = api.QueryContext(ctx, queryRequirementsCmd, id); err != nil {
+			return
+		}
+		defer rows.Close()
+		var (
+			target string
+			cond string
+		)
+		for rows.Next() {
+			if err = rows.Scan(&target, &cond); err != nil  {
+				return
+			}
+			info.Requirements[target] = cond
+		}
+		if err = rows.Err(); err != nil {
+			return
+		}
 	}
 	return
 }
