@@ -89,7 +89,9 @@ if [[ "$WEB_ONLY" != true ]]; then
 	fi
 	echo '==> Building app'
 	GOARCH=amd64 GOOS=linux build_app || exit $?
+	echo '==> Building ghupdater'
+	GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build -o ./output/ghupdater ./cmds/ghupdater || exit $?
 	echo '==> Building handle dev'
-	GOARCH=amd64 GOOS=linux build_handle dev
+	GOARCH=amd64 GOOS=linux build_handle dev || exit $?
 	echo '==> Done'
 fi

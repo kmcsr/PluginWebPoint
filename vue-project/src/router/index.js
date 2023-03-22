@@ -11,7 +11,7 @@ const router = createRouter({
 			name: 'Plugin List',
 			component: IndexView,
 			meta: {
-				title: 'Plugin List | PWP'
+				title: 'MCDReforged Plugin List | PWP'
 			}
 		},
 		{

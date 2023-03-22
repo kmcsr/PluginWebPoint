@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeMount, onMounted, ref, computed } from 'vue'
+import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useRequest } from 'vue-request'
 import { useI18n } from 'vue-i18n'
@@ -13,11 +13,16 @@ import DownloadBox from 'vue-material-design-icons/DownloadBox.vue'
 import LabelIcon from '../components/LabelIcon.vue'
 import SlideNav from '../components/SlideNav.vue'
 import CopyableText from '../components/CopyableText.vue'
+import { setMetadata } from '../metadata.js'
 import { fmtSize, fmtTimestamp, sinceDate, fmtDateTime } from '../utils'
 
 const props = defineProps({
-	'plugin': String
+	'plugin': String,
 })
+
+if(props.plugin === 'mcdreforged'){
+	window.location.replace('https://github.com/Fallen-Breath/MCDReforged')
+}
 
 const errorText = ref(null)
 
@@ -45,11 +50,22 @@ const navData = [
 	}
 ]
 
+var unmountCall = null
+
 const { data, run: getPluginInfo } = useRequest(async () => {
 	try{
 		let res = await axios.get(`/dev/plugin/${props.plugin}/info`)
 		res = res.data.data
-		document.title = `${res.name} | PWP`
+		if(!unmountCall){
+			({ unmount: unmountCall } = setMetadata({
+				title: `${res.name} | PWP`,
+				keywords: [res.id, res.name],
+				description: {
+					'': res.desc,
+					'zh': res.desc_zhCN || res.desc,
+				}
+			}))
+		}
 		return res
 	}catch(err){
 		console.error('Error when fetching plugin data:', err)
@@ -101,15 +117,15 @@ function pluginDependUrl(id){
 	return `/plugin/${id}`
 }
 
-onBeforeMount(() => {
-	if(props.plugin === 'mcdreforged'){
-		window.location.replace('https://github.com/Fallen-Breath/MCDReforged')
-		return
-	}
-})
-
 onMounted(() => {
 	// freshData()
+})
+
+onUnmounted(() => {
+	if(unmountCall){
+		unmountCall()
+		unmountCall = null
+	}
 })
 
 </script>
