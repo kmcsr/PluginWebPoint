@@ -22,6 +22,11 @@
       "cmd": ["bash", "./build.sh"],
     },
     {
+      "name": "Build Dev",
+      "working_dir": "$project_path",
+      "cmd": ["bash", "./build.sh", "--dev"],
+    },
+    {
       "name": "Build & Run",
       "working_dir": "$project_path",
       "cmd": ["bash", "./build.sh", "--run", "--debug"],

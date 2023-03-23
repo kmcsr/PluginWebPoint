@@ -35,7 +35,7 @@ export function setI18nLanguage(locale){
 		locale = i18n.global.fallbackLocale.value
 	}
 	i18n.global.locale.value = locale
-	document.querySelector('html').setAttribute('lang', locale)
+	document.getElementsByTagName('html')[0].setAttribute('lang', locale)
 }
 
 export async function loadLocaleMessages(locale){

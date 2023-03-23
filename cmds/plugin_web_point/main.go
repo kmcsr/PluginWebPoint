@@ -59,6 +59,8 @@ func main(){
 
 	// apiIns = mysqlimpl.NewMySqlAPI(username, passwd, address, database)
 
+	now := time.Now()
+
 	var (
 		err error
 		assetsFS fs.FS
@@ -73,7 +75,7 @@ func main(){
 		indexFile = fd.(io.ReadSeeker)
 	}
 
-	http.Handle("/assets/", http.StripPrefix("/assets", NewConstFileServer(assetsFS, time.Time{})))
+	http.Handle("/assets/", http.StripPrefix("/assets", NewConstFileServer(assetsFS, now)))
 	http.Handle("/", HandleConstData(indexFile, time.Time{}, "index.html"))
 
 	server := &http.Server{
@@ -165,22 +167,24 @@ func (s *ConstFileServer)ServeHTTP(rw http.ResponseWriter, req *http.Request){
 		http.Error(rw, fmt.Sprintf("%d: %s", code, http.StatusText(code)), code)
 		return
 	}
-	s.mux.RLock()
-	etag, ok := s.etags[name]
-	s.mux.RUnlock()
-	if !ok {
-		h := sha256.New()
-		if _, err := io.Copy(h, fd); err == nil {
-			etag = fmt.Sprintf(`"sha256:%x"`, h.Sum(nil))
-			s.mux.Lock()
-			s.etags[name] = etag
-			s.mux.Unlock()
-		}else{
-			loger.Errorf("%s: Cannot calc etag: %v", req.URL.Path, err)
-		}
-	}
-	if len(etag) > 0 {
-		rw.Header().Set("Etag", etag)
-	}
+	// Doesn't need Etag, since vite use filename with hash suffix
+	rw.Header().Set("Cache-Control", "max-age=108000") // A month
+	// s.mux.RLock()
+	// etag, ok := s.etags[name]
+	// s.mux.RUnlock()
+	// if !ok {
+	// 	h := sha256.New()
+	// 	if _, err := io.Copy(h, fd); err == nil {
+	// 		etag = fmt.Sprintf(`"sha256:%x"`, h.Sum(nil))
+	// 		s.mux.Lock()
+	// 		s.etags[name] = etag
+	// 		s.mux.Unlock()
+	// 	}else{
+	// 		loger.Errorf("%s: Cannot calc etag: %v", req.URL.Path, err)
+	// 	}
+	// }
+	// if len(etag) > 0 {
+	// 	rw.Header().Set("Etag", etag)
+	// }
 	http.ServeContent(rw, req, name, s.modTime, fd.(io.ReadSeeker))
 }

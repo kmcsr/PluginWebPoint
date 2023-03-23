@@ -1,6 +1,5 @@
 <script setup>
 import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
-import { NPagination } from 'naive-ui'
 import { useRequest, usePagination } from 'vue-request'
 import TextSearch from 'vue-material-design-icons/TextSearch.vue'
 import Filter from 'vue-material-design-icons/Filter.vue'
@@ -8,8 +7,10 @@ import SortAscending from 'vue-material-design-icons/SortAscending.vue'
 import SortDescending from 'vue-material-design-icons/SortDescending.vue'
 import axios from 'axios'
 import router from '../router'
+import { prefix as apiPrefix } from '../api'
 import LabelIcon from '../components/LabelIcon.vue'
 import PluginItem from '../components/PluginItem.vue'
+import Pagination from '../components/Pagination.vue'
 
 const pluginList = ref(null)
 const pluginListHead = ref(null)
@@ -53,7 +54,7 @@ async function getPluginList(){
 	if(!counts){
 		return []
 	}
-	let res = await axios.get('/dev/plugins', {
+	let res = await axios.get(`${apiPrefix}/plugins`, {
 		params: {
 			filterBy: textFilter.value,
 			tags: tagFilters.value.sort().join(','),
@@ -69,7 +70,7 @@ async function getPluginList(){
 }
 
 async function getPluginCounts(){
-	let res = await axios.get('/dev/plugins/count', {
+	let res = await axios.get(`${apiPrefix}/plugins/count`, {
 		params: {
 			filterBy: textFilter.value,
 			tags: tagFilters.value.join(','),
@@ -231,13 +232,12 @@ onUnmounted(() => {
 				<TransitionGroup name="pbody" tag="div">
 					<div id="plugin-filter-teleport-slot"></div>
 					<div class="plugin-top-pages">
-						<NPagination
+						<Pagination
 							v-model:page="listCurrentPage"
 							v-model:page-size="listPageSize"
 							:page-count="totalPage"
-							:page-slot="6"
-							:page-sizes="[5, 15, 50, 100]"
-							show-size-picker
+							:page-slot="pageSlot"
+							:page-sizes="[10, 15, 50, 100]"
 						/>
 					</div>
 					<div v-if="searching" style="width:100%;min-height:6rem;display:flex;flex-direction:row;justify-content:center;align-items:center;">
@@ -254,13 +254,12 @@ onUnmounted(() => {
 					</div>
 				</TransitionGroup>
 				<div class="plugin-bottom-pages">
-					<NPagination
+					<Pagination
 						v-model:page="listCurrentPage"
 						v-model:page-size="listPageSize"
 						:page-count="totalPage"
 						:page-slot="pageSlot"
 						:page-sizes="[10, 15, 50, 100]"
-						show-size-picker
 					/>
 				</div>
 			</div>
@@ -285,7 +284,7 @@ onUnmounted(() => {
 							class="flex-box plugin-sorts-icon" size="1.5rem" @click="reverseSort=!reverseSort"/>
 						<select id="plugin-sorts-options" v-model="sortBy">
 							<option value="downloads">{{ $t('word.downloads') }}</option>
-							<option value="lastUpdate">{{ $t('word.lastUpdate') }}</option>
+							<option value="lastRelease">{{ $t('word.lastRelease') }}</option>
 							<option value="name">{{ $t('word.name') }}</option>
 							<option value="id">{{ $t('word.id') }}</option>
 							<option value="authors">{{ $t('word.authors') }}</option>

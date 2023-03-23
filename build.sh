@@ -36,6 +36,7 @@ function build_app(){
 
 function build_handle(){
 	_handle=$1
+	echo "==> Building handle ${_handle}"
 	CGO_ENABLED=0 go build -o "./output/pwp_${_handle}" "./handlers/${_handle}"
 	return $?
 }
@@ -91,7 +92,7 @@ if [[ "$WEB_ONLY" != true ]]; then
 	GOARCH=amd64 GOOS=linux build_app || exit $?
 	echo '==> Building ghupdater'
 	GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build -o ./output/ghupdater ./cmds/ghupdater || exit $?
-	echo '==> Building handle dev'
 	GOARCH=amd64 GOOS=linux build_handle dev || exit $?
+	GOARCH=amd64 GOOS=linux build_handle v1 || exit $?
 	echo '==> Done'
 fi

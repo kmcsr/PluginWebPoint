@@ -20,8 +20,6 @@ import (
 	"github.com/kmcsr/PluginWebPoint/api/mysqlimpl"
 )
 
-const DevApiVerion = 1
-
 type OkResp struct{
 	Status string `json:"status"`
 	Data   any    `json:"data"`
@@ -49,7 +47,6 @@ func NewErrResp(name string, err error)(*ErrResp){
 	}
 }
 
-var sitePrefix string = "https://mcdr.waerba.com"
 var apiIns api.API = nil
 var ghCli = api.InitGithubCli()
 
@@ -67,7 +64,7 @@ func main(){
 	apiIns = mysqlimpl.NewMySqlAPI(username, passwd, dbaddress, database, ghCli)
 
 	app := iris.New()
-	app.SetName("[DEV-API]")
+	app.SetName("[V1-API]")
 	app.Logger().SetOutput(os.Stdout)
 	if api.DEBUG {
 		app.Logger().SetLevel("debug")
@@ -75,14 +72,11 @@ func main(){
 		app.Logger().SetLevel("info")
 	}
 	app.Logger().SetTimeFormat("2006-01-02 15:04:05.000:")
-	app.Logger().Debugf("DEV API Debug mode on")
+	app.Logger().Debugf("V1 API Debug mode on")
 	app.Macros().Get("string").RegisterFunc("pid", api.PluginIdRe.MatchString)
 	app.Macros().Get("string").RegisterFunc("version", api.VersionRe.MatchString)
 
-	if !api.DEBUG {
-		app.Use(recover.New())
-	}
-	app.Use(loggerMiddleware)
+	app.Use(recover.New(), loggerMiddleware)
 	app.OnErrorCode(iris.StatusNotFound, func(ctx iris.Context){
 		if !ctx.IsStopped() {
 			ctx.StopWithJSON(iris.StatusNotFound, ErrResp{
@@ -104,25 +98,24 @@ func main(){
 		ctx.JSON(iris.Map{
 			"status": "ok",
 			"time": time.Now().UTC().String(),
-			"version": DevApiVerion,
+			"version": 1,
 		})
 	})
 
 	app.PartyFunc("/plugins", func(p iris.Party){
 		p.Use(parseGetPluginListOption, checkIfNotModified)
-		p.Get("/", devPlugins)
-		p.Get("/ids", devPluginIds)
-		p.Get("/count", devPluginCounts)
-		p.Get("/sitemap.txt", devPluginSitemapTxt)
+		p.Get("/", v1Plugins)
+		p.Get("/ids", v1PluginIds)
+		p.Get("/count", v1PluginCounts)
 	})
 	app.PartyFunc("/plugin/{id:string pid()}", func(p iris.Party){
-		p.Get("/info", checkIfNotModifiedPluginInfo, devPluginInfo)
-		p.Get("/readme", devPluginReadme)
-		p.Get("/releases", checkIfNotModifiedPluginInfo, devPluginReleases)
+		p.Get("/info", checkIfNotModifiedPluginInfo, v1PluginInfo)
+		p.Get("/readme", v1PluginReadme)
+		p.Get("/releases", checkIfNotModifiedPluginInfo, v1PluginReleases)
 		p.PartyFunc("/release/{tag:string version()}", func(p iris.Party){
 			p.Use(checkIfNotModifiedPluginInfo)
-			p.Get("/", devPluginRelease)
-			p.Get("/asset/{filename:file}", devPluginAsset)
+			p.Get("/", v1PluginRelease)
+			p.Get("/asset/{filename:file}", v1PluginAsset)
 		})
 	})
 
@@ -202,7 +195,7 @@ func loggerMiddleware(ctx iris.Context){
 	if irisContext.StatusCodeNotSuccessful(ctx.GetStatusCode()) {
 		ctx.Application().Logger().Warn(line)
 	}else{
-		ctx.Application().Logger().Info(line)
+		ctx.Application().Logger().Debug(line)
 	}
 }
 
@@ -266,7 +259,7 @@ func parseGetPluginListOption(ctx iris.Context){
 	ctx.Next()
 }
 
-func devPlugins(ctx iris.Context){
+func v1Plugins(ctx iris.Context){
 	payload, _ := ctx.Values().Get(keyPluginListOption).(api.PluginListOpt)
 	list, err := apiIns.GetPluginList(payload)
 	if err != nil {
@@ -276,7 +269,7 @@ func devPlugins(ctx iris.Context){
 	err = ctx.JSON(NewOkResp(list))
 }
 
-func devPluginIds(ctx iris.Context){
+func v1PluginIds(ctx iris.Context){
 	payload, _ := ctx.Values().Get(keyPluginListOption).(api.PluginListOpt)
 	list, err := apiIns.GetPluginIdList(payload)
 	if err != nil {
@@ -286,7 +279,7 @@ func devPluginIds(ctx iris.Context){
 	ctx.JSON(NewOkResp(list))
 }
 
-func devPluginCounts(ctx iris.Context){
+func v1PluginCounts(ctx iris.Context){
 	payload, _ := ctx.Values().Get(keyPluginListOption).(api.PluginListOpt)
 	counts, err := apiIns.GetPluginCounts(payload)
 	if err != nil {
@@ -296,21 +289,7 @@ func devPluginCounts(ctx iris.Context){
 	ctx.JSON(NewOkResp(counts))
 }
 
-func devPluginSitemapTxt(ctx iris.Context){
-	payload, _ := ctx.Values().Get(keyPluginListOption).(api.PluginListOpt)
-	list, err := apiIns.GetPluginIdList(payload)
-	if err != nil {
-		ctx.StopWithJSON(iris.StatusInternalServerError, NewErrResp("ApiErr", err))
-		return
-	}
-	sites := &strings.Builder{}
-	for _, id := range list {
-		sites.WriteString(fmt.Sprintf("%s/plugin/%s\n", sitePrefix, id))
-	}
-	ctx.Text(sites.String())
-}
-
-func devPluginInfo(ctx iris.Context){
+func v1PluginInfo(ctx iris.Context){
 	id := ctx.Params().GetString("id")
 	info, err := apiIns.GetPluginInfo(id)
 	if err != nil {
@@ -324,7 +303,7 @@ func devPluginInfo(ctx iris.Context){
 	ctx.JSON(NewOkResp(info))
 }
 
-func devPluginReadme(ctx iris.Context){
+func v1PluginReadme(ctx iris.Context){
 	id := ctx.Params().GetString("id")
 	render, _ := ctx.URLParamBool("render")
 	content, err := apiIns.GetPluginReadme(id)
@@ -359,7 +338,7 @@ func devPluginReadme(ctx iris.Context){
 	_, _ = ctx.Write(body)
 }
 
-func devPluginReleases(ctx iris.Context){
+func v1PluginReleases(ctx iris.Context){
 	id := ctx.Params().GetString("id")
 	releases, err := apiIns.GetPluginReleases(id)
 	if err != nil {
@@ -373,7 +352,7 @@ func devPluginReleases(ctx iris.Context){
 	ctx.JSON(NewOkResp(releases))
 }
 
-func devPluginRelease(ctx iris.Context){
+func v1PluginRelease(ctx iris.Context){
 	id := ctx.Params().GetString("id")
 	tag, err := api.VersionFromString(ctx.Params().GetString("tag"))
 	if err != nil {
@@ -388,7 +367,7 @@ func devPluginRelease(ctx iris.Context){
 	ctx.JSON(NewOkResp(release))
 }
 
-func devPluginAsset(ctx iris.Context){
+func v1PluginAsset(ctx iris.Context){
 	id := ctx.Params().GetString("id")
 	tag, err := api.VersionFromString(ctx.Params().GetString("tag"))
 	if err != nil {

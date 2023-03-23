@@ -21,6 +21,7 @@ import (
 )
 
 type MySqlAPI struct {
+	name string
 	DB *sql.DB
 	GithubCli *GhClient
 }
@@ -30,6 +31,7 @@ var _ API = (*MySqlAPI)(nil)
 func NewMySqlAPI(username string, passwd string, address string, database string, ghCli *GhClient)(api *MySqlAPI){
 	var err error
 	api = &MySqlAPI{
+		name: database,
 		GithubCli: ghCli,
 	}
 
@@ -65,13 +67,44 @@ func (api *MySqlAPI)QueryContext(ctx context.Context, cmd string, args ...any)(r
 	}
 }
 
+func (api *MySqlAPI)GetLastUpdateTime()(modTime time.Time, err error){
+	const queryCmd = "SELECT UPDATE_TIME" +
+		" FROM information_schema.tables" +
+		" WHERE TABLE_NAME = 'plugins' AND TABLE_SCHEMA = "
+
+	cmd := queryCmd + "'" + api.name + "'"
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
+	defer cancel()
+
+	if err = api.DB.QueryRowContext(ctx, cmd).Scan(&modTime); err != nil {
+		return
+	}
+	return
+}
+
+func (api *MySqlAPI)GetPluginLastUpdateTime(id string)(modTime time.Time, err error){
+	const queryCmd = "SELECT " +
+		"CONVERT_TZ(`lastUpdate`,@@session.time_zone,'+00:00') AS `utc_lastUpdate`" +
+		" FROM plugins" +
+		" WHERE `id`=?"
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
+	defer cancel()
+
+	if err = api.DB.QueryRowContext(ctx, queryCmd, id).Scan(&modTime); err != nil {
+		return
+	}
+	return
+}
+
 func (api *MySqlAPI)GetPluginCounts(opt PluginListOpt)(count PluginCounts, err error){
 	const queryCmd = "SELECT COUNT(`id`) AS `count`," +
 		"SUM(`label_information`) AS `count_information`," +
 		"SUM(`label_tool`) AS `count_tool`," +
 		"SUM(`label_management`) AS `count_management`," +
 		"SUM(`label_api`) AS `count_api`" +
-		"FROM plugins AS a WHERE `enabled`=TRUE"
+		" FROM plugins AS a WHERE `enabled`=TRUE"
 
 	cmd := queryCmd
 	args := []any{}
@@ -105,7 +138,7 @@ func (api *MySqlAPI)GetPluginCounts(opt PluginListOpt)(count PluginCounts, err e
 func (api *MySqlAPI)GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err error){
 	const queryCmd = "SELECT a.`id`,a.`name`,a.`version`,a.`authors`,a.`desc`,a.`desc_zhCN`," +
 		"CONVERT_TZ(a.`createAt`,@@session.time_zone,'+00:00') AS `utc_createAt`," +
-		"CONVERT_TZ(a.`lastUpdate`,@@session.time_zone,'+00:00') AS `utc_lastUpdate`," +
+		"CONVERT_TZ(a.`lastRelease`,@@session.time_zone,'+00:00') AS `utc_lastRelease`," +
 		"`label_information`,`label_tool`,`label_management`,`label_api`," +
 		"`github_sync`," +
 		"CONVERT_TZ(`last_sync`,@@session.time_zone,'+00:00') AS `utc_last_sync`," +
@@ -127,8 +160,6 @@ func (api *MySqlAPI)GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err er
 	defer cancel()
 
 	var rows *sql.Rows
-	loger.Debugf("exec sql: %q", cmd)
-	loger.Debugf("  args: %v", args)
 	if rows, err = api.QueryContext(ctx, cmd, args...); err != nil {
 		loger.Debugf("sql error: %v", err)
 		return
@@ -138,15 +169,19 @@ func (api *MySqlAPI)GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err er
 		var (
 			info PluginInfo
 			authors string
+			lastRelease sql.NullTime
 			ghLastSync sql.NullTime
 			downloads sql.NullInt64
 		)
-		if err = rows.Scan(&info.Id, &info.Name, &info.Version, &authors, &info.Desc, &info.Desc_zhCN, &info.CreateAt, &info.LastUpdate,
+		if err = rows.Scan(&info.Id, &info.Name, &info.Version, &authors, &info.Desc, &info.Desc_zhCN, &info.CreateAt, &lastRelease,
 			&info.Labels.Information, &info.Labels.Tool, &info.Labels.Management, &info.Labels.Api,
 			&info.GithubSync, &ghLastSync, &downloads); err != nil {
 			return
 		}
 		info.Authors = strings.Split(authors, ",")
+		if lastRelease.Valid {
+			info.LastRelease = &lastRelease.Time
+		}
 		if ghLastSync.Valid {
 			info.LastSync = &ghLastSync.Time
 		}
@@ -161,10 +196,43 @@ func (api *MySqlAPI)GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err er
 	return
 }
 
+func (api *MySqlAPI)GetPluginIdList(opt PluginListOpt)(ids []string, err error){
+	const queryCmd = "SELECT a.`id`" +
+		" FROM plugins as a WHERE a.`enabled`=TRUE"
+	cmd := queryCmd
+	args := []any{}
+	opt0 := pluginListOpt{opt}
+	cmd, args = opt0.appendTextFilter(cmd, args)
+	cmd, args = opt0.appendTagFilter(cmd, args)
+	cmd, args = opt0.appendOrderBy(cmd, args)
+	cmd, args = opt0.appendLimit(cmd, args)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 7)
+	defer cancel()
+
+	var rows *sql.Rows
+	if rows, err = api.QueryContext(ctx, cmd, args...); err != nil {
+		loger.Debugf("sql error: %v", err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			return
+		}
+		ids = append(ids, id)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+	return
+}
+
 func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 	const queryCmd = "SELECT a.`name`,a.`version`,a.`authors`,a.`desc`,a.`desc_zhCN`," +
 		"CONVERT_TZ(a.`createAt`,@@session.time_zone,'+00:00') AS `utc_createAt`," +
-		"CONVERT_TZ(a.`lastUpdate`,@@session.time_zone,'+00:00') AS `utc_lastUpdate`," +
+		"CONVERT_TZ(a.`lastRelease`,@@session.time_zone,'+00:00') AS `utc_lastRelease`," +
 		"a.`repo`,a.`repo_branch`,a.`repo_subdir`,a.`link`," +
 		"`label_information`,`label_tool`,`label_management`,`label_api`," +
 		"`github_sync`,`ghRepoOwner`,`ghRepoName`," +
@@ -183,12 +251,13 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 	defer cancel()
 
 	var (
+		lastRelease sql.NullTime
 		ghLastSync sql.NullTime
 		downloads sql.NullInt64
 	)
 	info = new(PluginInfo)
 	if err = api.DB.QueryRowContext(ctx, queryCmd, id).
-		Scan(&info.Name, &info.Version, &authors, &info.Desc, &info.Desc_zhCN, &info.CreateAt, &info.LastUpdate,
+		Scan(&info.Name, &info.Version, &authors, &info.Desc, &info.Desc_zhCN, &info.CreateAt, &lastRelease,
 		&info.Repo, &info.RepoBranch, &info.RepoSubdir, &info.Link,
 		&info.Labels.Information, &info.Labels.Tool, &info.Labels.Management, &info.Labels.Api,
 		&info.GithubSync, &info.GhRepoOwner, &info.GhRepoName, &ghLastSync, &downloads); err != nil {
@@ -198,6 +267,9 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 		return
 	}
 	info.Id = id
+	if lastRelease.Valid {
+		info.LastRelease = &lastRelease.Time
+	}
 	if ghLastSync.Valid {
 		info.LastSync = &ghLastSync.Time
 	}
@@ -256,9 +328,12 @@ func (api *MySqlAPI)GetPluginReadme(id string)(content Content, err error){
 	}
 	if !info.GithubSync {
 		filename := filepath.Join(PLUGIN_DIR, id, "README.MD")
-		if content.Data, err = os.ReadFile(filename); err != nil {
+		var stat os.FileInfo
+		if stat, err = os.Stat(filename); err != nil {
 			return
 		}
+		content.ModTime = stat.ModTime().Format("2006-01-02 15:04:05.000")
+		content.Data = func()([]byte, error){ return os.ReadFile(filename) }
 		return
 	}
 	// prefixs only exists when fetching readme from github
@@ -297,32 +372,35 @@ func (api *MySqlAPI)GetPluginReadme(id string)(content Content, err error){
 		}
 		return
 	}
-	defer res.Body.Close()
-
-	var data []byte
-	if data, err = io.ReadAll(res.Body); err != nil {
-		return
-	}
-	var payload struct{
-		Sha      string `json:"sha"`
-		Size     int64  `json:"size"`
-		Url      string `json:"url"`
-		HtmlUrl  string `json:"html_url"`
-		GitUrl   string `json:"git_url"`
-		Download string `json:"download_url"`
-		Type     string `json:"type"`
-		Content  string `json:"content"`
-		Encoding string `json:"encoding"`
-	}
-	if err = json.Unmarshal(data, &payload); err != nil {
-		err = fmt.Errorf("JsonDecodeErr: %v", err)
-		return
-	}
-	if payload.Encoding != "base64" {
-		err = fmt.Errorf("Unexpect content enocding %q, expect base64", payload.Encoding)
-		return
-	}
-	if content.Data, err = base64.StdEncoding.DecodeString(payload.Content); err != nil {
+	content.ModTime = res.Header.Get("Last-Modified")
+	content.CloseFunc = res.Body.Close
+	content.Data = func()(data []byte, err error){
+		defer res.Body.Close()
+		if data, err = io.ReadAll(res.Body); err != nil {
+			return
+		}
+		var payload struct{
+			Sha      string `json:"sha"`
+			Size     int64  `json:"size"`
+			Url      string `json:"url"`
+			HtmlUrl  string `json:"html_url"`
+			GitUrl   string `json:"git_url"`
+			Download string `json:"download_url"`
+			Type     string `json:"type"`
+			Content  string `json:"content"`
+			Encoding string `json:"encoding"`
+		}
+		if err = json.Unmarshal(data, &payload); err != nil {
+			err = fmt.Errorf("JsonDecodeErr: %v", err)
+			return
+		}
+		if payload.Encoding != "base64" {
+			err = fmt.Errorf("Unexpect content enocding %q, expect base64", payload.Encoding)
+			return
+		}
+		if data, err = base64.StdEncoding.DecodeString(payload.Content); err != nil {
+			return
+		}
 		return
 	}
 	return
@@ -561,8 +639,8 @@ func (opt pluginListOpt)appendOrderBy(cmd string, args []any)(string, []any){
 		if rev {
 			cmd += " DESC"
 		}
-	case "lastupdate":
-		cmd += " ORDER BY a.`lastUpdate`"
+	case "lastrelease":
+		cmd += " ORDER BY a.`lastRelease`"
 		if !opt.Reversed {
 			cmd += " DESC"
 		}

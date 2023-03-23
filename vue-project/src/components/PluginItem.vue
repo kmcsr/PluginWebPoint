@@ -45,8 +45,8 @@ defineProps({
 			</div>
 			<div>
 				<UpdateSvg class="flex-box" size="1.5rem" style="margin-right:0.2rem;"/>
-				{{ $t('message.updated_pre') }} 
-				<b class="plugin-updated">{{fmtTimestamp(sinceDate(data.lastUpdate), 1)}}</b>
+				{{ $t('message.release_pre') }} 
+				<b class="plugin-updated">{{fmtTimestamp(sinceDate(data.lastRelease), 1)}}</b>
 				{{ $t('word.ago') }}
 			</div>
 		</div>
@@ -68,7 +68,7 @@ defineProps({
 }
 
 .plugin-body {
-	width: 77%;
+	width: 70%;
 	height: 100%;
 }
 
@@ -76,8 +76,9 @@ defineProps({
 	display: flex;
 	flex-direction: column;
 	align-items: flex-end;
-	width: 23%;
+	width: 30%;
 	margin-left: 1rem;
+	white-space: nowrap;
 }
 
 .plugin-extra>div {

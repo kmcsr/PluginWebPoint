@@ -14,6 +14,7 @@ import LabelIcon from '../components/LabelIcon.vue'
 import SlideNav from '../components/SlideNav.vue'
 import CopyableText from '../components/CopyableText.vue'
 import { setMetadata } from '../metadata.js'
+import { prefix as apiPrefix } from '../api'
 import { fmtSize, fmtTimestamp, sinceDate, fmtDateTime } from '../utils'
 
 const props = defineProps({
@@ -54,7 +55,7 @@ var unmountCall = null
 
 const { data, run: getPluginInfo } = useRequest(async () => {
 	try{
-		let res = await axios.get(`/dev/plugin/${props.plugin}/info`)
+		let res = await axios.get(`${apiPrefix}/plugin/${props.plugin}/info`)
 		res = res.data.data
 		if(!unmountCall){
 			({ unmount: unmountCall } = setMetadata({
@@ -80,7 +81,7 @@ const { data, run: getPluginInfo } = useRequest(async () => {
 
 const { data: dataReadme, run: getPluginReadme } = useRequest(async () => {
 	try{
-		const res = await axios.get(`/dev/plugin/${props.plugin}/readme`, {
+		const res = await axios.get(`${apiPrefix}/plugin/${props.plugin}/readme`, {
 			params: {
 				render: true,
 			}
@@ -99,7 +100,7 @@ const { data: dataReadme, run: getPluginReadme } = useRequest(async () => {
 })
 
 const { data: dataReleases, run: getPluginReleases } = useRequest(async () => {
-	return (await axios.get(`/dev/plugin/${props.plugin}/releases`)).data.data
+	return (await axios.get(`${apiPrefix}/plugin/${props.plugin}/releases`)).data.data
 })
 
 const requireInstallCmd = computed(() => ((data.value && data.value.requirements) ? 
@@ -149,8 +150,8 @@ onUnmounted(() => {
 				</header>
 				<div class="flex-box">
 					<UpdateSvg class="flex-box" size="1.5rem" style="margin-right:0.2rem;"/>
-					{{ $t('message.lastUpdate') }}:&nbsp;
-					<span v-if="data.lastUpdate">{{fmtTimestamp(sinceDate(data.lastUpdate), 1)}} {{ $t('word.ago') }}</span>
+					{{ $t('message.lastRelease') }}:&nbsp;
+					<span v-if="data.lastRelease">{{fmtTimestamp(sinceDate(data.lastRelease), 1)}} {{ $t('word.ago') }}</span>
 					<span v-else><i>{{ $t('word.unknown') }}</i></span>
 				</div>
 				<div v-if="data.github_sync" class="flex-box">

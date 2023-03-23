@@ -10,9 +10,6 @@ const router = createRouter({
 			path: '/',
 			name: 'Plugin List',
 			component: IndexView,
-			meta: {
-				title: 'MCDReforged Plugin List | PWP'
-			}
 		},
 		{
 			path: '/about',
@@ -21,18 +18,12 @@ const router = createRouter({
 			// this generates a separate chunk (About.[hash].js) for this route
 			// which is lazy-loaded when the route is visited.
 			component: () => import('../views/AboutView.vue'),
-			meta: {
-				title: 'About | PWP'
-			}
 		},
 		{
 			path: '/plugin/:plugin',
 			props: true,
 			name: 'Plugin',
-			component: PluginView,
-			meta: {
-				title: (to) => `Plugin ${to.params.plugin}`,
-			}
+			component: () => import('../views/PluginView.vue'),
 		},
 		{
 			path: '/download/:plugin/:tag/:filename',
@@ -47,18 +38,6 @@ const router = createRouter({
 			component: () => import('../views/AuthorView.vue'),
 		}
 	]
-})
-
-router.beforeEach((to, from) => {
-	if(to.meta.title){
-		if(typeof to.meta.title === 'function'){
-			document.title = to.meta.title(to, from)
-		}else{
-			document.title = to.meta.title
-		}
-	}else{
-		document.title = to.name
-	}
 })
 
 export default router

@@ -1,5 +1,6 @@
 <script setup>
 import { defineProps, onMounted, onUnmounted, ref } from 'vue'
+import { prefix as apiPrefix } from '../api'
 
 const props = defineProps({
 	'plugin': String,
@@ -30,7 +31,7 @@ onMounted(() => {
 			return
 		}
 		redirectReject = null
-		window.location.replace(`/dev/plugin/${props.plugin}/release/${props.tag}/asset/${props.filename}`)
+		window.location.replace(`${apiPrefix}/plugin/${props.plugin}/release/${props.tag}/asset/${props.filename}`)
 	})()
 })
 

@@ -47,7 +47,7 @@ type PluginInfo struct {
 	Desc         string       `json:"desc,omitempty"`
 	Desc_zhCN    string       `json:"desc_zhCN,omitempty"`
 	CreateAt     time.Time    `json:"createAt"`
-	LastUpdate   time.Time    `json:"lastUpdate"`
+	LastRelease  *time.Time   `json:"lastRelease,omitempty"`
 	Repo         string       `json:"repo,omitempty"`
 	RepoBranch   string       `json:"repoBranch,omitempty"`
 	RepoSubdir   string       `json:"repoSubdir,omitempty"`
@@ -84,14 +84,26 @@ type PluginListOpt struct{
 }
 
 type Content struct{
-	Data []byte
+	Data func()([]byte, error)
+	CloseFunc func()(error)
+	ModTime string
 	URLPrefix string
 	DataURLPrefix string
 }
 
+func (c Content)Close()(error){
+	if c.CloseFunc == nil {
+		return nil
+	}
+	return c.CloseFunc()
+}
+
 type API interface {
+	GetLastUpdateTime()(modTime time.Time, err error)
+	GetPluginLastUpdateTime(id string)(modTime time.Time, err error)
 	GetPluginCounts(opt PluginListOpt)(count PluginCounts, err error)
 	GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err error)
+	GetPluginIdList(opt PluginListOpt)(ids []string, err error)
 	GetPluginInfo(id string)(info *PluginInfo, err error)
 	GetPluginReadme(id string)(content Content, err error)
 	GetPluginReleases(id string)(releases []*PluginRelease, err error)
