@@ -19,6 +19,12 @@ const activeIndex = ref(0)
 const sOffset = ref(0)
 const sWidth = ref(0)
 
+function render(){
+	const tg = links.value[activeIndex.value]
+	sOffset.value = tg.$el.offsetLeft - 1
+	sWidth.value = tg.$el.getBoundingClientRect().width + 2
+}
+
 function updateRouter(to){
 	let j = 0
 	for(let i in props.data){
@@ -58,10 +64,9 @@ function updateRouter(to){
 		break
 	}
 	activeIndex.value = j
-	const tg = links.value[j]
-	sOffset.value = tg.$el.offsetLeft
-	sWidth.value = tg.$el.getBoundingClientRect().width
 	emit('update:active', props.data[j].id)
+	render()
+	setTimeout(()=>{render()}, 301) // makesure the width will update after animations
 }
 
 watch(router.currentRoute, updateRouter)
@@ -71,10 +76,7 @@ for(let d of props.data){
 		d._computed = computed(d.text)
 		watch(d._computed, async () => {
 			await nextTick()
-			const tg = links.value[activeIndex.value]
-			console.log('el:', tg.$el.offsetLeft, tg.$el.getBoundingClientRect())
-			sOffset.value = tg.$el.offsetLeft
-			sWidth.value = tg.$el.getBoundingClientRect().width
+			render()
 		})
 	}else{
 		d._computed = {
@@ -122,12 +124,13 @@ onMounted(() => {
 	height: 100%;
 	padding: 0.1rem 0.4rem 0 0.4rem;
 	border-radius: 0.5rem 0.5rem 0 0;
+	transition: 0.3s all ease;
 }
 
 .nav>a.active {
 	color: #000;
 	font-weight: 600;
-	box-shadow: 0px -5px 20px -5px hsla(160, 100%, 37%, 1);
+	box-shadow: inset 0px -4px 5px -2px #000;
 }
 
 .nav>a.active:hover {

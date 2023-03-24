@@ -212,7 +212,10 @@ onUnmounted(() => {
 				</section>
 				<section class="plugin-section-box plugin-section-box-down">
 					<div class="section-command-box">
-						<div></div>
+						<div>
+							<h3>{{ $t('word.install_cmd') }}</h3>
+							<CopyableText :text="requireInstallCmd"/>
+						</div>
 					</div>
 				</section>
 			</div>
@@ -333,6 +336,10 @@ onUnmounted(() => {
 
 .plugin-section-box>* {
 	margin-bottom: 0.2rem;
+}
+
+.section-command-box {
+	padding: 0.4rem;
 }
 
 .plugin-main-box {

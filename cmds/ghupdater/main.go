@@ -155,6 +155,11 @@ type Asset struct{
 	Size int64 `json:"size"`
 	DownloadCount int64 `json:"download_count"`
 	Url string `json:"url"`
+	CreateAt time.Time `json:"created_at"`
+	BrowserDownloadUrl string `json:"browser_download_url"`
+}
+
+type Release struct{
 	Name string `json:"name"`
 	TagName string `json:"tag_name"`
 	CreateAt time.Time `json:"created_at"`
