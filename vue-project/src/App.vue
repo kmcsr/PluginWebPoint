@@ -1,6 +1,7 @@
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
 import WebBox from 'vue-material-design-icons/WebBox.vue'
+import { i18nLangMap } from './i18n'
 
 </script>
 
@@ -18,7 +19,7 @@ import WebBox from 'vue-material-design-icons/WebBox.vue'
 			</label>
 			<select id="i18n-lang-select" v-model="$i18n.locale">
 				<option v-for="locale in $i18n.availableLocales" :key="locale"
-					:value="locale">{{locale}}</option>
+					:value="locale">{{i18nLangMap[locale] || locale}}</option>
 			</select>
 		</div>
 	</header>

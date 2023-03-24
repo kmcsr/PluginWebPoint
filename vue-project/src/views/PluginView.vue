@@ -59,7 +59,7 @@ const { data, run: getPluginInfo } = useRequest(async () => {
 		res = res.data.data
 		if(!unmountCall){
 			({ unmount: unmountCall } = setMetadata({
-				title: `${res.name} | PWP`,
+				title: res.name,
 				keywords: [res.id, res.name],
 				description: {
 					'': res.desc,
@@ -217,7 +217,7 @@ onUnmounted(() => {
 				</section>
 			</div>
 			<div class="plugin-main-box">
-				<SlideNav :data="navData" default="readme" v-model:active="navActive" :replace="true"/>
+				<SlideNav :data="navData" between="0.8rem" default="readme" v-model:active="navActive" :replace="true"/>
 				<article v-if="navActive === 'readme'" class="markdown-body plugin-readme"
 					v-html="dataReadme === false?'<i>No readme :&lt;</i>' :(dataReadme || '<i>Loading ...</i>')">
 				</article>
@@ -331,6 +331,10 @@ onUnmounted(() => {
 	margin-top: 0;
 }
 
+.plugin-section-box>* {
+	margin-bottom: 0.2rem;
+}
+
 .plugin-main-box {
 	max-width: calc(100% - 21rem);
 	width: 52rem;
@@ -340,10 +344,6 @@ onUnmounted(() => {
 	border: var(--color-border) 1px solid;
 	border-radius: 1rem;
 	background-color: var(--color-background);
-}
-
-.plugin-section-box>* {
-	margin-bottom: 0.2rem;
 }
 
 .plugin-header {

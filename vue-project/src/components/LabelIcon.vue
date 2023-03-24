@@ -38,7 +38,6 @@ const icons = {
 	display: inline-flex;
 	flex-direction: row;
 	align-items: center;
-	cursor: pointer;
 }
 
 .label-icon {

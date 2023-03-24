@@ -6,6 +6,11 @@ const defaultOptions = { locale: 'en', fallbackLocale: 'en' }
 
 var i18n = null;
 
+export const i18nLangMap = {
+	'en_us': 'English',
+	'zh_cn': '简体中文',
+}
+
 export async function setupI18n(){
 	var lang = VueCookies.get('lang')
 	if(!lang){

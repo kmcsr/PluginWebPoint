@@ -105,6 +105,22 @@ defineProps({
 	font-weight: 600;
 }
 
+.name>a::after {
+	content: ' ';
+	display: block;
+	position: absolute;
+	top: 100%;
+	width: 0;
+	height: 0.1rem;
+	border-radius: 0.05rem;
+	background-color: hsla(160, 100%, 37%, 1);
+	transition: all 0.3s ease;
+}
+
+.name>a:hover::after {
+	width: 100%;
+}
+
 .authors {
 	display: inline-block;
 	margin-left: 0.4rem;

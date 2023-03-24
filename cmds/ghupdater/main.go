@@ -154,11 +154,6 @@ type Asset struct{
 	Name string `json:"name"`
 	Size int64 `json:"size"`
 	DownloadCount int64 `json:"download_count"`
-	CreateAt time.Time `json:"created_at"`
-	BrowserDownloadUrl string `json:"browser_download_url"`
-}
-
-type Release struct{
 	Url string `json:"url"`
 	Name string `json:"name"`
 	TagName string `json:"tag_name"`
@@ -271,7 +266,7 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 	const removeRequireCmd = "DELETE FROM plugin_requirements WHERE `id`=?"
 	const insertRequireCmd = "INSERT INTO plugin_requirements (`id`,`target`,`tag`)" +
 		" VALUES (?,?,?)"
-	const insertReleaseCmd = "INSERT IGNORE INTO plugin_releases (`id`,`tag`,`enabled`,`stable`,`size`,`uploaded`,`filename`,`downloads`," +
+	const insertReleaseCmd = "REPLACE INTO plugin_releases (`id`,`tag`,`enabled`,`stable`,`size`,`uploaded`,`filename`,`downloads`," +
 		"`github_url`)" +
 		" VALUES (?,?,TRUE,?,?,?,?,?,?)"
 
@@ -402,11 +397,6 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 				loger.Debugf("inserting asset: %v", asset)
 				if _, err = ExecTx(tx, insertReleaseCmd, info.Id, release.ParsedVersion, release.Prerelease,
 					asset.Size, asset.CreateAt, asset.Name, asset.DownloadCount, asset.BrowserDownloadUrl); err != nil {
-					if e, ok := err.(*mysql.MySQLError); ok {
-						if e.Number == 1062 {
-							continue
-						}
-					}
 					// loger.Errorf("Error when insert release into sql")
 					return
 				}

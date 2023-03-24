@@ -9,13 +9,13 @@ const props = defineProps({
 	'default': String,
 	'active': String,
 	'replace': Boolean,
+	'between': String,
 })
 
 const emit = defineEmits(['update:active'])
 
-const navAfter = ref(null)
 const links = ref([])
-var activeIndex = 0
+const activeIndex = ref(0)
 const sOffset = ref(0)
 const sWidth = ref(0)
 
@@ -57,7 +57,7 @@ function updateRouter(to){
 		j = i
 		break
 	}
-	activeIndex = j
+	activeIndex.value = j
 	const tg = links.value[j]
 	sOffset.value = tg.$el.offsetLeft
 	sWidth.value = tg.$el.getBoundingClientRect().width
@@ -71,7 +71,7 @@ for(let d of props.data){
 		d._computed = computed(d.text)
 		watch(d._computed, async () => {
 			await nextTick()
-			const tg = links.value[activeIndex]
+			const tg = links.value[activeIndex.value]
 			console.log('el:', tg.$el.offsetLeft, tg.$el.getBoundingClientRect())
 			sOffset.value = tg.$el.offsetLeft
 			sWidth.value = tg.$el.getBoundingClientRect().width
@@ -91,10 +91,11 @@ onMounted(() => {
 
 <template>
 	<nav class="nav">
-		<RouterLink ref="links" v-for="(d, i) in data" :key="d.id" :to="d.path" :replace="replace">
+		<RouterLink ref="links" v-for="(d, i) in data" :key="d.id" :to="d.path" :replace="replace"
+			:style="between && i?{'margin-left': between}:{}" :class="activeIndex == i?'active':''">
 			{{d._computed ?d._computed.value :''}}
 		</RouterLink>
-		<div ref="navAfter" class="nav-after" :style="{ left: `${sOffset}px`, width: `${sWidth}px` }"></div>
+		<div class="nav-after" :style="{ left: `${sOffset}px`, width: `${sWidth}px` }"></div>
 	</nav>
 </template>
 
@@ -103,24 +104,34 @@ onMounted(() => {
 .nav {
 	height: 2rem;
 	border-bottom: 0.05rem #000 solid;
+	z-index: 10;
 }
 
 .nav-after {
-	height: 0.08rem;
+	display: block;
+	top: -0.1rem;
+	height: 0.2rem;
+	width: 0;
+	border-radius: 0.1rem;
 	background-color: #00d157;
-	top: -0.05rem;
 	transition: 0.3s all ease-out;
 }
 
 .nav>a {
 	display: inline-block;
 	height: 100%;
-	padding: 0 0.2rem;
+	padding: 0.1rem 0.4rem 0 0.4rem;
+	border-radius: 0.5rem 0.5rem 0 0;
 }
 
 .nav>a.active {
 	color: #000;
-	font-weight: 400;
+	font-weight: 600;
+	box-shadow: 0px -5px 20px -5px hsla(160, 100%, 37%, 1);
+}
+
+.nav>a.active:hover {
+	background-color: unset;
 }
 
 </style>

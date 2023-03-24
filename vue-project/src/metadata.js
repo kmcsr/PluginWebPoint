@@ -54,7 +54,7 @@ export function setMetadata({
 	}
 	if(title){
 		oldMeta.title = document.title
-		document.title = title
+		document.title = title + ' - PluginWebPoint - MCDReforged'
 	}
 	if(keywords){
 		if(Array.isArray(keywords)){

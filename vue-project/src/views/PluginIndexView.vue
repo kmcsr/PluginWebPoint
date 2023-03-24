@@ -11,6 +11,7 @@ import { prefix as apiPrefix } from '../api'
 import LabelIcon from '../components/LabelIcon.vue'
 import PluginItem from '../components/PluginItem.vue'
 import Pagination from '../components/Pagination.vue'
+import { setMetadata } from '../metadata'
 
 const pluginList = ref(null)
 const pluginListHead = ref(null)
@@ -215,11 +216,16 @@ function onQueryChange(value){
 
 watch(router.currentRoute, onQueryChange)
 
+const { unmount: unmountMeta } = setMetadata({
+	title: 'Plugin List',
+})
+
 onMounted(() => {
 	window.addEventListener('scroll', onScroll)
 })
 
 onUnmounted(() => {
+	unmountMeta()
 	window.removeEventListener('scroll', onScroll)
 })
 

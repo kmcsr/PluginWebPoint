@@ -19,7 +19,7 @@ const router = createRouter({
 		{
 			path: '/plugins',
 			name: 'plugin_index',
-			component: () => import('../views/IndexView.vue'),
+			component: () => import('../views/PluginIndexView.vue'),
 		},
 		{
 			path: '/plugin/:plugin',
