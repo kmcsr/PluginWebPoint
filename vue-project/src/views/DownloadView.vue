@@ -1,12 +1,15 @@
 <script setup>
 import { defineProps, onMounted, onUnmounted, ref } from 'vue'
 import { prefix as apiPrefix } from '../api'
+import { setMetadata } from '../metadata'
 
 const props = defineProps({
 	'plugin': String,
 	'tag': String,
 	'filename': String,
 })
+
+const downloadURL = `${apiPrefix}/plugin/${props.plugin}/release/${props.tag}/asset/${props.filename}`
 
 var redirectReject = null
 var remain = ref(null)
@@ -18,24 +21,34 @@ function wait(n){
 	})
 }
 
-onMounted(() => {
+function onPageShow(){
+	remain.value = 3
+}
+
+const { unmount } = setMetadata({
+	extras: [
+		{ name: 'robots', content: 'noindex' },
+	]
+})
+
+onMounted(async () => {
+	window.addEventListener('pageshow', onPageShow)
 	remain.value = 3;
-	(async function(){
-		try{
-			while(remain.value > 0){
-				await wait(1000)
-				remain.value--
-				console.log(1)
-			}
-		}catch(_){
-			return
+	try{
+		while(remain.value > 0){
+			await wait(1000)
+			remain.value--
 		}
-		redirectReject = null
-		window.location.replace(`${apiPrefix}/plugin/${props.plugin}/release/${props.tag}/asset/${props.filename}`)
-	})()
+	}catch(err){
+		return
+	}
+	redirectReject = null
+	window.location.replace(downloadURL)
 })
 
 onUnmounted(() => {
+	unmount()
+	window.removeEventListener(onPageShow)
 	if(redirectReject){
 		redirectReject()
 		redirectReject = null
@@ -46,12 +59,19 @@ onUnmounted(() => {
 
 <template>
 	<main>
-		<pre>
-			<center>File will be download in {{remain}} sec...</center>
-		</pre>
+		<p class="hint">
+			<center>
+				<b>File will be download in {{remain}} sec...</b><br/>
+				If not, click <a :href="downloadURL">here</a>
+			</center>
+		</p>
 	</main>
 </template>
 
 <style scoped>
+
+.hint {
+	margin-top: 3rem;
+}
 
 </style>

@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router'
 import BriefcaseDownload from 'vue-material-design-icons/BriefcaseDownload.vue'
 import UpdateSvg from 'vue-material-design-icons/Update.vue'
 import LabelIcon from './LabelIcon.vue'
-import { fmtTimestamp, sinceDate } from '../utils'
+import { fmtTimestamp, sinceDate, tinyParser } from '../utils'
 
 defineProps({
 	'data': Object,
@@ -28,7 +28,7 @@ defineProps({
 				</span>
 			</div>
 			<p class="description">
-				<div v-if="data.desc">{{$i18n.locale == 'zh_cn' ?data.desc_zhCN :data.desc}}</div>
+				<div v-if="data.desc" v-html="tinyParser.parse($i18n.locale == 'zh_cn' ?data.desc_zhCN :data.desc)"></div>
 				<div v-else><i>{{ $t('message.no_description') }}</i></div>
 			</p>
 			<div class="labels">
@@ -59,7 +59,7 @@ defineProps({
 	display: flex;
 	flex-direction: row;
 	width: 100%;
-	height: 7.5rem;
+	min-height: 7.5rem;
 	margin: 0.2rem 0;
 	padding: 0.5rem;
 	border-radius: 1rem;
@@ -146,8 +146,7 @@ defineProps({
 @media (max-width: 54.2rem){
 	.plugin-item {
 		flex-direction: column;
-		min-height: 12rem;
-		height: auto;
+		min-height: 14rem;
 	}
 	.plugin-body {
 		width: 100%;

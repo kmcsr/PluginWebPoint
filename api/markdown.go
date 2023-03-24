@@ -7,10 +7,18 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/gomarkdown/markdown"
-	"github.com/gomarkdown/markdown/ast"
-	"github.com/gomarkdown/markdown/html"
-	"github.com/gomarkdown/markdown/parser"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/util"
+	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark-emoji"
+	emojiDef "github.com/yuin/goldmark-emoji/definition"
+	"github.com/yuin/goldmark-highlighting/v2"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/renderer/html"
+	"go.abhg.dev/goldmark/anchor"
+	"go.abhg.dev/goldmark/mermaid"
 	"github.com/microcosm-cc/bluemonday"
 )
 
@@ -23,7 +31,6 @@ type Option struct{
 
 func (o *Option)fixRelLink(prefix, src string)(string){
 	if !strings.Contains(src, "://") && !strings.HasPrefix(src, "/") && !strings.HasPrefix(src, "#") {
-		loger.Infof("src: %s", src, strings.HasPrefix(src, "#"))
 		out, err := url.JoinPath(prefix, src)
 		if err != nil {
 			out = "about:blank#err:" + err.Error()
@@ -33,75 +40,102 @@ func (o *Option)fixRelLink(prefix, src string)(string){
 	return src
 }
 
-func (o *Option)exec(n ast.Node)(ast.Node){
-	switch m := n.(type) {
-	case *ast.Link:
-		if len(o.URLPrefix) > 0 {
-			m.Destination = ([]byte)(o.fixRelLink(o.URLPrefix, (string)(m.Destination)))
+func (o *Option)Transform(doc *ast.Document, reader text.Reader, ctx parser.Context){
+	ast.Walk(doc, func(node ast.Node, enter bool)(ast.WalkStatus, error){
+		if !enter {
+			return ast.WalkContinue, nil
 		}
-	case *ast.Image:
-		if len(o.DataURLPrefix) > 0 {
-			m.Destination = ([]byte)(o.fixRelLink(o.DataURLPrefix, (string)(m.Destination)))
-		}else if len(o.URLPrefix) > 0 {
-			m.Destination = ([]byte)(o.fixRelLink(o.URLPrefix, (string)(m.Destination)))
+		switch m := node.(type) {
+		case *ast.Link:
+			if len(o.URLPrefix) > 0 {
+				m.Destination = ([]byte)(o.fixRelLink(o.URLPrefix, (string)(m.Destination)))
+			}
+		case *ast.Image:
+			if len(o.DataURLPrefix) > 0 {
+				m.Destination = ([]byte)(o.fixRelLink(o.DataURLPrefix, (string)(m.Destination)))
+			}else if len(o.URLPrefix) > 0 {
+				m.Destination = ([]byte)(o.fixRelLink(o.URLPrefix, (string)(m.Destination)))
+			}
+			return ast.WalkSkipChildren, nil
 		}
-	case *ast.Heading:
-		anchor := &ast.Link{
-			Container: ast.Container{
-				Parent: m,
-			},
-			Destination: ([]byte)("#" + o.HeadingIDPrefix + m.HeadingID + o.HeadingIDSuffix),
-			AdditionalAttributes: []string{`class="anchor"`},
-		}
-		m.Children = append(m.Children, anchor)
-		return m
-	case *ast.CodeBlock:
-	}
-	return n
+
+		return ast.WalkContinue, nil
+	})
 }
 
-func (o *Option)Walk(n ast.Node)(ast.Node){
-	n = o.exec(n)
-	children := n.GetChildren()
-	for i, c := range children {
-		children[i] = o.Walk(c)
-	}
-	return n
-}
-
-func (o *Option)SetHtmlOptions(opt *html.RendererOptions){
-	opt.HeadingIDPrefix = o.HeadingIDPrefix
-	opt.HeadingIDSuffix = o.HeadingIDSuffix
-}
-
-var langClassRe = regexp.MustCompile("language-[^ ]")
+var langClassRe = regexp.MustCompile("language-[^\"' ]")
 
 func (o *Option)NewPolicy()(p *bluemonday.Policy){
 	p = bluemonday.UGCPolicy()
 	p.AllowAttrs("class").Matching(langClassRe).OnElements("code")
 	p.AllowAttrs("class").Matching(regexp.MustCompile("anchor")).OnElements("a")
+	p.AllowAttrs("class").Matching(regexp.MustCompile("mermaid")).OnElements("div", "pre")
 	return
 }
 
 var DefaultOption = &Option{}
 
-func RenderMarkdown(src []byte, opt ...*Option)(out []byte){
-	var o = DefaultOption
-	if len(opt) > 0 {
-		o = opt[0]
+func RenderMarkdown(src []byte, opt *Option)(out []byte, err error){
+	buf := bytes.NewBuffer(make([]byte, 0, len(src) * 3 / 2))
+	renderer := goldmark.New(
+		goldmark.WithExtensions(extension.GFM),
+		goldmark.WithExtensions(
+			&mermaid.Extender{
+				RenderMode: mermaid.RenderModeClient,
+			},
+		),
+		goldmark.WithExtensions(
+			emoji.Emoji,
+		),
+		goldmark.WithExtensions(
+			highlighting.Highlighting,
+		),
+		goldmark.WithExtensions(
+			&anchor.Extender{Texter: anchor.Text("#")},
+		),
+		goldmark.WithParserOptions(
+			parser.WithAutoHeadingID(),
+			parser.WithASTTransformers(util.Prioritized(opt, 100)),
+		),
+		goldmark.WithRendererOptions(
+			html.WithHardWraps(),
+			html.WithUnsafe(),
+		),
+	)
+	// src = bytes.ReplaceAll(src, ([]byte)("\r\n"), ([]byte)("\n"))
+	if err = renderer.Convert(src, buf); err != nil {
+		return
 	}
-
-	src = bytes.ReplaceAll(src, ([]byte)("\r\n"), ([]byte)("\n"))
-	extensions := parser.CommonExtensions | parser.AutoHeadingIDs | parser.Mmark
-	p := parser.NewWithExtensions(extensions)
-	opts := html.RendererOptions{
-		Flags: html.CommonFlags | html.LazyLoadImages,
-	}
-	a := p.Parse(src)
-	a = o.Walk(a)
-	o.SetHtmlOptions(&opts)
-	r := html.NewRenderer(opts)
-	out1 := markdown.Render(a, r)
-	out = o.NewPolicy().SanitizeBytes(out1)
+	out = opt.NewPolicy().SanitizeReader(buf).Bytes()
 	return
+}
+
+var emojiSet = emojiDef.Github()
+
+func ReplaceEmoji(src []byte)(out []byte){
+	out = make([]byte, len(src))
+	s := 0
+	l := 0
+	for s < len(src) {
+		if i := bytes.IndexByte(src[s:], ':'); i != -1 {
+			i += s
+			l += copy(out[l:], src[s:i])
+			s = i
+			if i := bytes.IndexByte(src[s + 1:], ':'); i != -1 {
+				s++
+				i += s
+				emo, ok := emojiSet.Get((string)(src[s:i]))
+				if ok {
+					l += copy(out[l:], ([]byte)((string)(emo.Unicode)))
+				}else{
+					l += copy(out[l:], src[s:i + 1])
+				}
+				s = i + 1
+				continue
+			}
+		}
+		l += copy(out[l:], src[s:])
+		break
+	}
+	return out[:l]
 }

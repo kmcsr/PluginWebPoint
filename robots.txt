@@ -1,0 +1,11 @@
+
+User-agent: *
+
+Allow: /
+
+# Apis
+DisAllow: /dev
+DisAllow: /v1
+
+# Download pages
+DisAllow: /download

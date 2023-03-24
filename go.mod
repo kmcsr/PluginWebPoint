@@ -4,10 +4,14 @@ go 1.19
 
 require (
 	github.com/go-sql-driver/mysql v1.7.0
-	github.com/gomarkdown/markdown v0.0.0-20230322041520-c84983bdbf2a
 	github.com/kataras/iris/v12 v12.2.0
 	github.com/kmcsr/go-logger v1.1.1
 	github.com/microcosm-cc/bluemonday v1.0.23
+	github.com/yuin/goldmark v1.5.4
+	github.com/yuin/goldmark-emoji v1.0.1
+	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20220924101305-151362477c87
+	go.abhg.dev/goldmark/anchor v0.1.1
+	go.abhg.dev/goldmark/mermaid v0.3.0
 )
 
 require (
@@ -16,8 +20,10 @@ require (
 	github.com/CloudyKit/jet/v6 v6.2.0 // indirect
 	github.com/Joker/jade v1.1.3 // indirect
 	github.com/Shopify/goreferrer v0.0.0-20220729165902-8cddb4f5de06 // indirect
+	github.com/alecthomas/chroma/v2 v2.2.0 // indirect
 	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
+	github.com/dlclark/regexp2 v1.7.0 // indirect
 	github.com/eknkc/amber v0.0.0-20171010120322-cdade1c07385 // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/flosch/pongo2/v4 v4.0.2 // indirect

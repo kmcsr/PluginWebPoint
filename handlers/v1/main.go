@@ -192,7 +192,7 @@ func loggerMiddleware(ctx iris.Context){
 	status = ctx.GetStatusCode()
 	line := fmt.Sprintf("%v %4v %s %s %s", status, usedTime, ip, method, path)
 
-	if irisContext.StatusCodeNotSuccessful(ctx.GetStatusCode()) {
+	if irisContext.StatusCodeNotSuccessful(status) {
 		ctx.Application().Logger().Warn(line)
 	}else{
 		ctx.Application().Logger().Debug(line)
@@ -207,6 +207,8 @@ func checkIfNotModified(ctx iris.Context){
 			return
 		}
 		ctx.SetLastModified(modTime)
+	}else{
+		ctx.Application().Logger().Warnf("Cannot get api last update time: %v", err)
 	}
 	ctx.Next()
 }
@@ -316,7 +318,7 @@ func v1PluginReadme(ctx iris.Context){
 		ctx.StopWithJSON(iris.StatusInternalServerError, NewErrResp("ApiErr", err))
 		return
 	}
-
+	content.ModTime += " v1"
 	ims := ctx.GetHeader(irisContext.IfModifiedSinceHeaderKey)
 	if ims == content.ModTime {
 		ctx.WriteNotModified()
@@ -329,11 +331,16 @@ func v1PluginReadme(ctx iris.Context){
 		return
 	}
 	if render {
-		body = api.RenderMarkdown(body, &api.Option{
+		body0, err := api.RenderMarkdown(body, &api.Option{
 			URLPrefix: content.URLPrefix,
 			DataURLPrefix: content.DataURLPrefix,
-			HeadingIDPrefix: "~mdh@",
+			HeadingIDPrefix: "MDH~",
 		})
+		if err == nil {
+			body = body0
+		}else{
+			ctx.Application().Logger().Debugf("Cannot render readme: %v", err)
+		}
 	}
 	_, _ = ctx.Write(body)
 }

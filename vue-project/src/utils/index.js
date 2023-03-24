@@ -1,4 +1,8 @@
 
+import _tinyParser from './tinyParser'
+
+export const tinyParser = _tinyParser
+
 export function fmtSize(size){
 	let unit = 'B'
 	if(size > 1024){
@@ -244,4 +248,10 @@ export function fmtDateTime(date){
 	return format('%04d-%02d-%02d %02d:%02d:%02d',
 		d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(),
 		d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds())
+}
+
+export function waitScriptLoaded(script){
+	return new Promise((resolve) => {
+		script.onload = resolve
+	})
 }

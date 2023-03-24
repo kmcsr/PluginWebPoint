@@ -229,27 +229,27 @@ onUnmounted(() => {
 	<div class="plugin-list" ref="pluginList">
 		<KeepAlive>
 			<div>
+				<div id="plugin-filter-teleport-slot"></div>
+				<div class="plugin-top-pages">
+					<Pagination
+						v-model:page="listCurrentPage"
+						v-model:page-size="listPageSize"
+						:page-count="totalPage"
+						:page-slot="pageSlot"
+						:page-sizes="[10, 15, 50, 100]"
+					/>
+				</div>
 				<TransitionGroup name="pbody" tag="div">
-					<div id="plugin-filter-teleport-slot"></div>
-					<div class="plugin-top-pages">
-						<Pagination
-							v-model:page="listCurrentPage"
-							v-model:page-size="listPageSize"
-							:page-count="totalPage"
-							:page-slot="pageSlot"
-							:page-sizes="[10, 15, 50, 100]"
-						/>
-					</div>
-					<div v-if="searching" style="width:100%;min-height:6rem;display:flex;flex-direction:row;justify-content:center;align-items:center;">
+					<div v-if="searching" class="searching-hint">
 						<b>{{ $t('message.searching') }}</b>
 					</div>
-					<div v-else-if="errorText" class="error-box">
+					<div v-if="errorText" class="error-box">
 						{{ $t('message.error', { err: errorText }) }}
 					</div>
-					<TransitionGroup v-else-if="list.length" class="plugin-list-body" name="plist" tag="div">
+					<TransitionGroup v-if="!errorText && list.length" class="plugin-list-body" name="plist" tag="div">
 						<PluginItem  v-for="data in list" :key="data.id" :data="data"/>
 					</TransitionGroup>
-					<div v-else style="width:100%;min-height:6rem;display:flex;flex-direction:row;justify-content:center;align-items:center;">
+					<div v-if="!searching && !errorText && !(list.length)" class="searching-hint">
 						<b>{{ $t('message.no_plugin') }}</b>
 					</div>
 				</TransitionGroup>
@@ -292,7 +292,7 @@ onUnmounted(() => {
 					</div>
 				</div>
 			</div>
-			<Teleport to="#plugin-filter-teleport-slot" :disabled="pinHead"  v-if="showFilters">
+			<Teleport to="#plugin-filter-teleport-slot" :disabled="pinHead" v-if="showFilters">
 				<div class="plugin-filters">
 					<div>
 						<input type="checkbox" id="plugin-filters-information" name="scales" value="information" v-model="tagFilters">
@@ -476,7 +476,17 @@ onUnmounted(() => {
 	margin-left: 0.3rem;
 }
 
-.error-box{
+.searching-hint {
+	width: 100%;
+	height: 6rem;
+	max-height: 6rem;
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+	align-items: center;
+}
+
+.error-box {
 	display: flex;
 	align-items: center;
 	text-indent: 1rem;
@@ -524,6 +534,7 @@ onUnmounted(() => {
 
 .pbody-enter-from,
 .pbody-leave-to {
+	max-height: 0rem;
 	opacity: 0;
 	transform: translateY(-10px);
 }
@@ -534,7 +545,6 @@ onUnmounted(() => {
 	transform: translateX(30px);
 }
 
-.pbody-leave-active,
 .plist-leave-active {
 	position: absolute;
 }
@@ -545,7 +555,7 @@ onUnmounted(() => {
 		margin-right: 0;
 	}
 	.plugin-list>*:first-child {
-		margin-top: 5.7rem;
+		margin-top: 5.45rem;
 		min-height: 12rem;
 	}
 	.plugin-list-head-pin {

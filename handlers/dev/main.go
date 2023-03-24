@@ -96,7 +96,7 @@ func main(){
 	})
 
 	app.Use(func(ctx iris.Context){
-		ctx.Header(irisContext.CacheControlHeaderKey, "no-cache")
+		ctx.Header(irisContext.CacheControlHeaderKey, "public")
 		ctx.Next()
 	})
 
@@ -199,7 +199,7 @@ func loggerMiddleware(ctx iris.Context){
 	status = ctx.GetStatusCode()
 	line := fmt.Sprintf("%v %4v %s %s %s", status, usedTime, ip, method, path)
 
-	if irisContext.StatusCodeNotSuccessful(ctx.GetStatusCode()) {
+	if irisContext.StatusCodeNotSuccessful(status) {
 		ctx.Application().Logger().Warn(line)
 	}else{
 		ctx.Application().Logger().Info(line)
@@ -214,6 +214,8 @@ func checkIfNotModified(ctx iris.Context){
 			return
 		}
 		ctx.SetLastModified(modTime)
+	}else{
+		ctx.Application().Logger().Warnf("Cannot get api last update time: %v", err)
 	}
 	ctx.Next()
 }
@@ -227,6 +229,8 @@ func checkIfNotModifiedPluginInfo(ctx iris.Context){
 			return
 		}
 		ctx.SetLastModified(modTime)
+	}else{
+		ctx.Application().Logger().Warnf("Cannot get api last update time: %v", err)
 	}
 	ctx.Next()
 }
@@ -337,7 +341,7 @@ func devPluginReadme(ctx iris.Context){
 		ctx.StopWithJSON(iris.StatusInternalServerError, NewErrResp("ApiErr", err))
 		return
 	}
-
+	content.ModTime += " v-dev0"
 	ims := ctx.GetHeader(irisContext.IfModifiedSinceHeaderKey)
 	if ims == content.ModTime {
 		ctx.WriteNotModified()
@@ -350,11 +354,16 @@ func devPluginReadme(ctx iris.Context){
 		return
 	}
 	if render {
-		body = api.RenderMarkdown(body, &api.Option{
+		body0, err := api.RenderMarkdown(body, &api.Option{
 			URLPrefix: content.URLPrefix,
 			DataURLPrefix: content.DataURLPrefix,
-			HeadingIDPrefix: "~mdh@",
+			HeadingIDPrefix: "MDH~",
 		})
+		if err == nil {
+			body = body0
+		}else{
+			ctx.Application().Logger().Debugf("Cannot render readme: %v", err)
+		}
 	}
 	_, _ = ctx.Write(body)
 }

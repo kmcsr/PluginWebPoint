@@ -4,12 +4,14 @@ import Information from 'vue-material-design-icons/Information.vue'
 import ToolBox from 'vue-material-design-icons/ToolBox.vue'
 import Controller from 'vue-material-design-icons/Controller.vue'
 import ApiSvg from 'vue-material-design-icons/CloudPlus.vue'
+import router from '../router'
 
-defineProps({
+const props = defineProps({
 	'label': String,
 	'text': String,
 	'fillColor': String,
 	'size': String,
+	'allowClick': Boolean,
 })
 
 const icons = {
@@ -18,10 +20,14 @@ const icons = {
 	'management': Controller,
 	'api': ApiSvg,
 }
+
 </script>
 
 <template>
-	<div class="label">
+	<RouterLink v-if="allowClick" class="label" :to="`/plugins?t=${label}`">
+		<component :is="icons[label]" class="label-icon" :fill="fillColor" :size="size"/> {{text || label}}
+	</RouterLink>
+	<div v-else class="label">
 		<component :is="icons[label]" class="label-icon" :fill="fillColor" :size="size"/> {{text || label}}
 	</div>
 </template>
@@ -29,9 +35,10 @@ const icons = {
 <style scoped>
 
 .label {
-	display: flex;
+	display: inline-flex;
 	flex-direction: row;
 	align-items: center;
+	cursor: pointer;
 }
 
 .label-icon {

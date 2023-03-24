@@ -68,16 +68,12 @@ func (api *MySqlAPI)QueryContext(ctx context.Context, cmd string, args ...any)(r
 }
 
 func (api *MySqlAPI)GetLastUpdateTime()(modTime time.Time, err error){
-	const queryCmd = "SELECT UPDATE_TIME" +
-		" FROM information_schema.tables" +
-		" WHERE TABLE_NAME = 'plugins' AND TABLE_SCHEMA = "
-
-	cmd := queryCmd + "'" + api.name + "'"
+	const queryCmd = "SELECT MAX(`lastUpdate`) FROM plugins"
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
 	defer cancel()
 
-	if err = api.DB.QueryRowContext(ctx, cmd).Scan(&modTime); err != nil {
+	if err = api.DB.QueryRowContext(ctx, queryCmd).Scan(&modTime); err != nil {
 		return
 	}
 	return
@@ -92,6 +88,7 @@ func (api *MySqlAPI)GetPluginLastUpdateTime(id string)(modTime time.Time, err er
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
 	defer cancel()
 
+	loger.Debugf("Query row sql cmd: %s\n  args: [%v]", queryCmd, id)
 	if err = api.DB.QueryRowContext(ctx, queryCmd, id).Scan(&modTime); err != nil {
 		return
 	}
@@ -179,6 +176,8 @@ func (api *MySqlAPI)GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err er
 			return
 		}
 		info.Authors = strings.Split(authors, ",")
+		info.Desc = (string)(ReplaceEmoji(([]byte)(info.Desc)))
+		info.Desc_zhCN = (string)(ReplaceEmoji(([]byte)(info.Desc_zhCN)))
 		if lastRelease.Valid {
 			info.LastRelease = &lastRelease.Time
 		}
@@ -267,6 +266,8 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 		return
 	}
 	info.Id = id
+	info.Desc = (string)(ReplaceEmoji(([]byte)(info.Desc)))
+	info.Desc_zhCN = (string)(ReplaceEmoji(([]byte)(info.Desc_zhCN)))
 	if lastRelease.Valid {
 		info.LastRelease = &lastRelease.Time
 	}

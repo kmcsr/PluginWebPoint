@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, ref, computed } from 'vue'
+import { onMounted, onUnmounted, nextTick, ref, computed, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useRequest } from 'vue-request'
 import { useI18n } from 'vue-i18n'
@@ -15,7 +15,7 @@ import SlideNav from '../components/SlideNav.vue'
 import CopyableText from '../components/CopyableText.vue'
 import { setMetadata } from '../metadata.js'
 import { prefix as apiPrefix } from '../api'
-import { fmtSize, fmtTimestamp, sinceDate, fmtDateTime } from '../utils'
+import { fmtSize, fmtTimestamp, sinceDate, fmtDateTime, waitScriptLoaded, tinyParser } from '../utils'
 
 const props = defineProps({
 	'plugin': String,
@@ -99,6 +99,22 @@ const { data: dataReadme, run: getPluginReadme } = useRequest(async () => {
 	}
 })
 
+watch(dataReadme, async () => {
+	let marmaidScript = document.getElementById('mermaid-script')
+	if(!marmaidScript){
+		marmaidScript = document.createElement('script')
+		marmaidScript.id = 'mermaid-script'
+		marmaidScript.type = 'text/javascript'
+		marmaidScript.src = 'https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js'
+		document.body.appendChild(marmaidScript)
+	}
+	await nextTick()
+	if(!window.mermaid){
+		await waitScriptLoaded(marmaidScript)
+	}
+	window.mermaid.contentLoaded()
+})
+
 const { data: dataReleases, run: getPluginReleases } = useRequest(async () => {
 	return (await axios.get(`${apiPrefix}/plugin/${props.plugin}/releases`)).data.data
 })
@@ -134,66 +150,72 @@ onUnmounted(() => {
 <template>
 	<main>
 		<div v-if="data" class="plugin-box">
-			<section class="plugin-section-box">
-				<header class="plugin-header">
-					<RouterLink to="/">&lt;&lt;&nbsp;Back to Index</RouterLink>
-					<h1 class="plugin-name">
-						{{data.name}}
-						<span class="plugin-version">v{{data.version}}</span>
-					</h1>
-					<h2 class="plugin-authors">
-						By
-						<span v-for="author in data.authors">
-							{{author}}
-						</span>
-					</h2>
-				</header>
-				<div class="flex-box">
-					<UpdateSvg class="flex-box" size="1.5rem" style="margin-right:0.2rem;"/>
-					{{ $t('message.lastRelease') }}:&nbsp;
-					<span v-if="data.lastRelease">{{fmtTimestamp(sinceDate(data.lastRelease), 1)}} {{ $t('word.ago') }}</span>
-					<span v-else><i>{{ $t('word.unknown') }}</i></span>
-				</div>
-				<div v-if="data.github_sync" class="flex-box">
-					<SyncSvg class="flex-box" size="1.5rem" style="margin-right:0.2rem;"/>
-					{{ $t('message.synced_from_gh_1') }}
-					<Github class="flex-box" style="margin: 0 0.1rem;" size="1rem"/>
-					Github
-					{{ $t('message.synced_from_gh_2') }}:&nbsp;
-					<span v-if="data.last_sync">{{fmtTimestamp(sinceDate(data.last_sync), 1)}} {{ $t('word.ago') }}</span>
-					<span v-else><i>{{ $t('word.unknown') }}</i></span>
-				</div>
-				<h2>{{ $t('word.labels') }}:</h2>
-				<ul class="labels">
-					<li v-for="label in Object.entries(data.labels).filter(([k, ok])=>ok).map(([k, _])=>k).sort()">
-						<LabelIcon :label="label" :text="$t(`label.${label}`)" size="1rem"/>
-					</li>
-				</ul>
-				<h3>
+			<div>
+				<section class="plugin-section-box plugin-section-box-up">
+					<header class="plugin-header">
+						<RouterLink to="/plugins">&lt;&lt;&nbsp;Back to Index</RouterLink>
+						<h1 class="plugin-name">
+							{{data.name}}
+							<span class="plugin-version">v{{data.version}}</span>
+						</h1>
+						<h2 class="plugin-authors">
+							By
+							<span v-for="author in data.authors">
+								{{author}}
+							</span>
+						</h2>
+					</header>
 					<div class="flex-box">
-						<BriefcaseDownload class="flex-box" size="1.5rem"/>
-						{{ $t('message.totalDownload') }}: {{data.downloads}}
+						<UpdateSvg class="flex-box" size="1.5rem" style="margin-right:0.2rem;"/>
+						{{ $t('message.lastRelease') }}:&nbsp;
+						<span v-if="data.lastRelease">{{fmtTimestamp(sinceDate(data.lastRelease), 1)}} {{ $t('word.ago') }}</span>
+						<span v-else><i>{{ $t('word.unknown') }}</i></span>
 					</div>
-				</h3>
-				<h3>
-					<div class="flex-box">
-						<LinkBox class="flex-box" size="1.5rem"/>
-						{{ $t('word.links') }}:
+					<div v-if="data.github_sync" class="flex-box">
+						<SyncSvg class="flex-box" size="1.5rem" style="margin-right:0.2rem;"/>
+						{{ $t('message.synced_from_gh_1') }}
+						<Github class="flex-box" style="margin: 0 0.1rem;" size="1rem"/>
+						Github
+						{{ $t('message.synced_from_gh_2') }}:&nbsp;
+						<span v-if="data.last_sync">{{fmtTimestamp(sinceDate(data.last_sync), 1)}} {{ $t('word.ago') }}</span>
+						<span v-else><i>{{ $t('word.unknown') }}</i></span>
 					</div>
-				</h3>
-				<ul>
-					<li>
-						<a :href="data.repo">{{ $t('message.repo') }}</a>
-					</li>
-					<li>
-						<a :href="data.link">{{ $t('message.main_page') }}</a>
-					</li>
-				</ul>
-				<p class="description">
-					<div v-if="data.desc">{{$i18n.locale === 'zh_cn' ?data.desc_zhCN :data.desc}}</div>
-					<div v-else><i>{{ $t('message.no_description') }}</i></div>
-				</p>
-			</section>
+					<div class="labels">
+						<LabelIcon v-for="label in Object.entries(data.labels).filter(([k, ok])=>ok).map(([k, _])=>k).sort()"
+							:key="label" class="label" allow-click
+							:label="label" :text="$t(`label.${label}`)" size="1rem"/>
+					</div>
+					<h3>
+						<div class="flex-box">
+							<BriefcaseDownload class="flex-box" size="1.5rem"/>
+							{{ $t('message.totalDownload') }}: {{data.downloads}}
+						</div>
+					</h3>
+					<h3>
+						<div class="flex-box">
+							<LinkBox class="flex-box" size="1.5rem"/>
+							{{ $t('word.links') }}
+						</div>
+					</h3>
+					<ul>
+						<li>
+							<a :href="data.repo">{{ $t('message.repo') }}</a>
+						</li>
+						<li>
+							<a :href="data.link">{{ $t('message.main_page') }}</a>
+						</li>
+					</ul>
+					<p class="description">
+						<div v-if="data.desc" v-html="tinyParser.parse($i18n.locale === 'zh_cn' ?data.desc_zhCN :data.desc)"></div>
+						<div v-else><i>{{ $t('message.no_description') }}</i></div>
+					</p>
+				</section>
+				<section class="plugin-section-box plugin-section-box-down">
+					<div class="section-command-box">
+						<div></div>
+					</div>
+				</section>
+			</div>
 			<div class="plugin-main-box">
 				<SlideNav :data="navData" default="readme" v-model:active="navActive" :replace="true"/>
 				<article v-if="navActive === 'readme'" class="markdown-body plugin-readme"
@@ -289,13 +311,14 @@ onUnmounted(() => {
 .plugin-box {
 	display: flex;
 	flex-direction: row;
+	margin-top: 1rem;
 }
 
 .plugin-section-box {
 	min-width: 21rem;
 	width: 21rem;
 	height: fit-content;
-	margin-top: 1rem;
+	margin-top: 0.6rem;
 	padding: 0.5rem;
 	padding-bottom: 1rem;
 	border: var(--color-border) 1px solid;
@@ -304,10 +327,14 @@ onUnmounted(() => {
 	overflow: hidden;
 }
 
+.plugin-section-box-up {
+	margin-top: 0;
+}
+
 .plugin-main-box {
 	max-width: calc(100% - 21rem);
 	width: 52rem;
-	margin-top: 1rem;
+	margin-left: 0.6rem;
 	margin-bottom: 5rem;
 	padding: 1rem;
 	border: var(--color-border) 1px solid;
@@ -345,6 +372,18 @@ onUnmounted(() => {
 	font-weight: 150;
 }
 
+.labels {
+	padding-left: 1rem;
+}
+
+.label {
+	padding: 0 0.5rem;
+	/* border: 0.01rem solid #2cf9d0; */
+	border-radius: 1rem;
+	color: #097659;
+	background-color: #e3fdf5;
+}
+
 .description {
 	margin: 0.5rem 0.2rem;
 	text-indent: 1rem;
@@ -364,7 +403,6 @@ th, td {
 
 .plugin-release {
 	width: 100%;
-	height: 4rem;
 	margin-bottom: 0.1rem;
 }
 
@@ -372,7 +410,7 @@ th, td {
 	display: flex;
 	flex-direction: row;
 	width: 100%;
-	height: 100%;
+	min-height: 4rem;
 	border-radius: 1rem;
 	padding: 0.5rem;
 	color: #000;
@@ -403,7 +441,7 @@ th, td {
 	margin-left: 0.5rem;
 }
 
-@media (max-width: 54.2rem){
+@media (max-width: 60rem){
 	.plugin-box {
 		flex-direction: column;
 	}
@@ -413,9 +451,11 @@ th, td {
 	.plugin-main-box {
 		max-width: 100%;
 		width: 100%;
+		margin-top: 0.6rem;
+		margin-left: 0;
 	}
-	.plugin-release {
-		height: 9rem;
+	.plugin-release>a {
+		min-height: 7.5rem;
 	}
 	.release-type-box {
 		flex-direction: column;

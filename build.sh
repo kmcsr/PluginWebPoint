@@ -89,6 +89,7 @@ if [[ "$WEB_ONLY" != true ]]; then
 		exit $?
 	fi
 	echo '==> Building app'
+	cp ./robots.txt ./output/robots.txt
 	GOARCH=amd64 GOOS=linux build_app || exit $?
 	echo '==> Building ghupdater'
 	GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build -o ./output/ghupdater ./cmds/ghupdater || exit $?
