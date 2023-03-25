@@ -15,10 +15,8 @@ a:not(.markdown-body *) {
 	transition: 0.4s;
 }
 
-@media (hover: hover) {
-	a:not(.markdown-body *):hover {
-		background-color: hsla(160, 100%, 37%, 0.2);
-	}
+a:not(.markdown-body *):hover {
+	background-color: var(--color-link-hover);
 }
 
 table {

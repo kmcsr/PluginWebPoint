@@ -63,7 +63,7 @@ defineProps({
 	margin: 0.2rem 0;
 	padding: 0.5rem;
 	border-radius: 1rem;
-	background-color: #fafafa;
+	background-color: var(--color-background-soft);
 	box-shadow: #888 0 0 0.2rem;
 }
 

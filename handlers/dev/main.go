@@ -109,20 +109,19 @@ func main(){
 	})
 
 	app.PartyFunc("/plugins", func(p iris.Party){
-		p.Use(parseGetPluginListOption, checkIfNotModified)
+		p.Use(parseGetPluginListOption)
 		p.Get("/", devPlugins)
 		p.Get("/ids", devPluginIds)
 		p.Get("/count", devPluginCounts)
 		p.Get("/sitemap.txt", devPluginSitemapTxt)
 	})
 	app.PartyFunc("/plugin/{id:string pid()}", func(p iris.Party){
-		p.Get("/info", checkIfNotModifiedPluginInfo, devPluginInfo)
-		p.Get("/readme", devPluginReadme)
-		p.Get("/releases", checkIfNotModifiedPluginInfo, devPluginReleases)
+		p.Get("/info", devPluginInfo)
+		p.HandleMany(http.MethodHead + " " + http.MethodGet, "/readme", devPluginReadme)
+		p.Get("/releases", devPluginReleases)
 		p.PartyFunc("/release/{tag:string version()}", func(p iris.Party){
-			p.Use(checkIfNotModifiedPluginInfo)
 			p.Get("/", devPluginRelease)
-			p.Get("/asset/{filename:file}", devPluginAsset)
+			p.HandleMany(http.MethodHead + " " + http.MethodGet, "/asset/{filename:file}", devPluginAsset)
 		})
 	})
 
@@ -206,34 +205,36 @@ func loggerMiddleware(ctx iris.Context){
 	}
 }
 
-func checkIfNotModified(ctx iris.Context){
-	if modTime, err := apiIns.GetLastUpdateTime(); err == nil {
-		if modified, err := ctx.CheckIfModifiedSince(modTime); !modified && err == nil {
-			ctx.WriteNotModified()
-			ctx.StopExecution()
-			return
-		}
-		ctx.SetLastModified(modTime)
-	}else{
-		ctx.Application().Logger().Warnf("Cannot get api last update time: %v", err)
-	}
-	ctx.Next()
-}
+// Dev API don't need cache
 
-func checkIfNotModifiedPluginInfo(ctx iris.Context){
-	id := ctx.Params().GetString("id")
-	if modTime, err := apiIns.GetPluginLastUpdateTime(id); err == nil {
-		if modified, err := ctx.CheckIfModifiedSince(modTime); !modified && err == nil {
-			ctx.WriteNotModified()
-			ctx.StopExecution()
-			return
-		}
-		ctx.SetLastModified(modTime)
-	}else{
-		ctx.Application().Logger().Warnf("Cannot get api last update time: %v", err)
-	}
-	ctx.Next()
-}
+// func checkIfNotModified(ctx iris.Context){
+// 	if modTime, err := apiIns.GetLastUpdateTime(); err == nil {
+// 		if modified, err := ctx.CheckIfModifiedSince(modTime); !modified && err == nil {
+// 			ctx.WriteNotModified()
+// 			ctx.StopExecution()
+// 			return
+// 		}
+// 		ctx.SetLastModified(modTime)
+// 	}else{
+// 		ctx.Application().Logger().Warnf("Cannot get api last update time: %v", err)
+// 	}
+// 	ctx.Next()
+// }
+
+// func checkIfNotModifiedPluginInfo(ctx iris.Context){
+// 	id := ctx.Params().GetString("id")
+// 	if modTime, err := apiIns.GetPluginLastUpdateTime(id); err == nil {
+// 		if modified, err := ctx.CheckIfModifiedSince(modTime); !modified && err == nil {
+// 			ctx.WriteNotModified()
+// 			ctx.StopExecution()
+// 			return
+// 		}
+// 		ctx.SetLastModified(modTime)
+// 	}else{
+// 		ctx.Application().Logger().Warnf("Cannot get api last update time: %v", err)
+// 	}
+// 	ctx.Next()
+// }
 
 const keyPluginListOption = "pwp.plugin.list.options"
 
@@ -341,13 +342,13 @@ func devPluginReadme(ctx iris.Context){
 		ctx.StopWithJSON(iris.StatusInternalServerError, NewErrResp("ApiErr", err))
 		return
 	}
-	content.ModTime += " v-dev0"
-	ims := ctx.GetHeader(irisContext.IfModifiedSinceHeaderKey)
-	if ims == content.ModTime {
-		ctx.WriteNotModified()
-		return
-	}
-	ctx.Header(irisContext.LastModifiedHeaderKey, content.ModTime)
+
+	// ims := ctx.GetHeader(irisContext.IfModifiedSinceHeaderKey)
+	// if ims == content.ModTime {
+	// 	ctx.WriteNotModified()
+	// 	return
+	// }
+	// ctx.Header(irisContext.LastModifiedHeaderKey, content.ModTime)
 	body, err := content.Data()
 	if err != nil {
 		ctx.StopWithJSON(iris.StatusInternalServerError, NewErrResp("Cannot get the data of the README", err))
@@ -362,7 +363,7 @@ func devPluginReadme(ctx iris.Context){
 		if err == nil {
 			body = body0
 		}else{
-			ctx.Application().Logger().Debugf("Cannot render readme: %v", err)
+			ctx.Application().Logger().Warnf("Cannot render readme: %v", err)
 		}
 	}
 	_, _ = ctx.Write(body)

@@ -144,8 +144,8 @@ watch(props, render)
 	height: 1.6rem;
 	border-radius: 4px;
 	font-size: 0.8rem;
-	color: #333639;
-	transition: color,border-color 0.5s ease;
+	color: var(--color-text);
+	transition: color,background-color,border-color 0.5s ease;
 	user-select: none;
 	cursor: pointer;
 }
@@ -159,13 +159,13 @@ watch(props, render)
 }
 
 .page-switch-button {
-	border: 1px solid #e0e0e6;
+	border: 1px solid var(--color-text);
 }
 
 .page-switch-button[disabled=true] {
-	background-color: #fafafc;
-	border-color: #e0e0e6;
-	color: #c2c2c2;
+	background-color: var(--color-background-soft);
+	border-color: var(--color-background-3);
+	color: var(--color-background-3);
 	cursor: not-allowed;
 }
 
@@ -184,7 +184,7 @@ watch(props, render)
 }
 
 .page-size-select {
-	border: 1px solid #e0e0e6;
+	border: 1px solid;
 	width: auto;
 	height: 100%;
 }

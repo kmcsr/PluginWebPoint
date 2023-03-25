@@ -17,7 +17,9 @@
 		"main_page": "Main Page",
 		"no_release": "No release file",
 		"click_to_copy": "Click to copy to the clipboard",
-		"copy_successed": "Copy successed"
+		"copy_successed": "Copy successed",
+		"req_install_cmd": "Requirements Install Command",
+		"plugin_ingame_install_cmd": "Plugin Install Command (In Game)"
 	},
 	"word": {
 		"filters": "Filters",
@@ -32,7 +34,6 @@
 		"readme": "Readme",
 		"dependencies": "Dependencies",
 		"requirements": "Python Package Requirements",
-		"install_cmd": "Requirements Install Command",
 		"require": "Require",
 		"releases": "Release files",
 		"filename": "Filename",

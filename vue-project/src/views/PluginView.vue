@@ -13,6 +13,7 @@ import DownloadBox from 'vue-material-design-icons/DownloadBox.vue'
 import LabelIcon from '../components/LabelIcon.vue'
 import SlideNav from '../components/SlideNav.vue'
 import CopyableText from '../components/CopyableText.vue'
+import BackToTop from '../components/BackToTop.vue'
 import { setMetadata } from '../metadata.js'
 import { prefix as apiPrefix } from '../api'
 import { fmtSize, fmtTimestamp, sinceDate, fmtDateTime, waitScriptLoaded, tinyParser } from '../utils'
@@ -159,12 +160,17 @@ onUnmounted(() => {
 							<span class="plugin-version">v{{data.version}}</span>
 						</h1>
 						<h2 class="plugin-authors">
-							By
-							<span v-for="author in data.authors">
-								{{author}}
+							<span>By</span>
+							<span v-for="(author, i) in data.authors">
+								&nbsp;{{author + (i + 1 < data.authors.length?',':'')}}
 							</span>
 						</h2>
 					</header>
+					<div class="labels">
+						<LabelIcon v-for="label in Object.entries(data.labels).filter(([k, ok])=>ok).map(([k, _])=>k).sort()"
+							:key="label" class="label" allow-click
+							:label="label" :text="$t(`label.${label}`)" size="1rem"/>
+					</div>
 					<div class="flex-box">
 						<UpdateSvg class="flex-box" size="1.5rem" style="margin-right:0.2rem;"/>
 						{{ $t('message.lastRelease') }}:&nbsp;
@@ -179,11 +185,6 @@ onUnmounted(() => {
 						{{ $t('message.synced_from_gh_2') }}:&nbsp;
 						<span v-if="data.last_sync">{{fmtTimestamp(sinceDate(data.last_sync), 1)}} {{ $t('word.ago') }}</span>
 						<span v-else><i>{{ $t('word.unknown') }}</i></span>
-					</div>
-					<div class="labels">
-						<LabelIcon v-for="label in Object.entries(data.labels).filter(([k, ok])=>ok).map(([k, _])=>k).sort()"
-							:key="label" class="label" allow-click
-							:label="label" :text="$t(`label.${label}`)" size="1rem"/>
 					</div>
 					<h3>
 						<div class="flex-box">
@@ -212,9 +213,20 @@ onUnmounted(() => {
 				</section>
 				<section class="plugin-section-box plugin-section-box-down">
 					<div class="section-command-box">
-						<div>
-							<h3>{{ $t('word.install_cmd') }}</h3>
+						<div v-if="requireInstallCmd">
+							<h3>{{ $t('message.req_install_cmd') }}</h3>
 							<CopyableText :text="requireInstallCmd"/>
+						</div>
+						<div>
+							<h3>{{ $t('message.plugin_ingame_install_cmd') }}</h3>
+							<p style="text-indent:0.5rem;">
+								<RouterLink to="/plugin/aluminum">
+									<b><i>(Aluminum required)</i></b>
+								</RouterLink>
+							</p>
+							<CopyableText :text="`!!al i ${plugin}`"
+								hover-color="#e6e6e6"
+								hover-background-color="#015f7d"/>
 						</div>
 					</div>
 				</section>
@@ -249,7 +261,7 @@ onUnmounted(() => {
 						<div v-if="data.requirements">
 							<h2>{{ $t('word.requirements') }}</h2>
 							<hr style="margin-bottom:0.5rem;"/>
-							<h3>{{ $t('word.install_cmd') }}</h3>
+							<h3>{{ $t('message.req_install_cmd') }}</h3>
 							<CopyableText :text="requireInstallCmd"/>
 							<table>
 								<thead>
@@ -299,6 +311,7 @@ onUnmounted(() => {
 					<div v-else><i>{{ $t('message.no_release') }}</i></div>
 				</article>
 			</div>
+			<BackToTop color="#00e1d8" background="#fff" size="4rem" left="1rem" bottom="3rem"/>
 		</div>
 		<div v-else-if="errorText" class="error-box">
 			{{errorText}}
@@ -326,7 +339,7 @@ onUnmounted(() => {
 	padding-bottom: 1rem;
 	border: var(--color-border) 1px solid;
 	border-radius: 1rem;
-	background-color: var(--color-background);
+	background-color: var(--color-background-soft);
 	overflow: hidden;
 }
 
@@ -350,7 +363,7 @@ onUnmounted(() => {
 	padding: 1rem;
 	border: var(--color-border) 1px solid;
 	border-radius: 1rem;
-	background-color: var(--color-background);
+	background-color: var(--color-canvas-default);
 }
 
 .plugin-header {
@@ -374,7 +387,8 @@ onUnmounted(() => {
 }
 
 .plugin-authors>span {
-	margin-right: 0.2rem;
+	display: inline-block;
+	text-indent: 0;
 	font-size: 1.1rem;
 	font-weight: 150;
 }
@@ -387,8 +401,8 @@ onUnmounted(() => {
 	padding: 0 0.5rem;
 	/* border: 0.01rem solid #2cf9d0; */
 	border-radius: 1rem;
-	color: #097659;
-	background-color: #e3fdf5;
+	color: var(--color-label-text);
+	background-color: var(--color-label-backgound);
 }
 
 .description {
@@ -420,15 +434,11 @@ th, td {
 	min-height: 4rem;
 	border-radius: 1rem;
 	padding: 0.5rem;
-	color: #000;
+	color: var(--color-text);
 }
 
 .plugin-release:hover>a {
-	background-color: #eee;
-}
-
-.plugin-release:active {
-
+	background-color: var(--color-background-3);
 }
 
 .release-type-box {

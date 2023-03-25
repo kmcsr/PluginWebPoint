@@ -48,7 +48,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
 	unmount()
-	window.removeEventListener(onPageShow)
+	window.removeEventListener('pageshow', onPageShow)
 	if(redirectReject){
 		redirectReject()
 		redirectReject = null

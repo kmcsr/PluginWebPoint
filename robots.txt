@@ -3,9 +3,9 @@ User-agent: *
 
 Allow: /
 
-# Apis
-DisAllow: /dev
-DisAllow: /v1
+# Apis, cannot disallow for CSR
+# DisAllow: /dev
+# DisAllow: /v1
 
 # Download pages
 DisAllow: /download

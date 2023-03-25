@@ -1,4 +1,3 @@
-
 <script setup>
 import { defineProps, defineEmits, onBeforeMount, onMounted, nextTick, ref, computed, watch } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -128,9 +127,9 @@ onMounted(() => {
 }
 
 .nav>a.active {
-	color: #000;
+	color: var(--color-text);
 	font-weight: 600;
-	box-shadow: inset 0px -4px 5px -2px #000;
+	box-shadow: inset 0 -3px 5px -3px #000;
 }
 
 .nav>a.active:hover {

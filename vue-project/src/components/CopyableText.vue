@@ -4,6 +4,9 @@ import ClipboardText from 'vue-material-design-icons/ClipboardText.vue'
 
 const props = defineProps({
 	'text': String,
+	'fillColor': String,
+	'hoverColor': String,
+	'hoverBackgroundColor': String,
 })
 
 const copySuccess = ref(false)
@@ -31,7 +34,11 @@ async function copy(){
 				{{ copySuccess ?$t('message.copy_successed') :$t('message.click_to_copy') }}
 			</span>
 		</div>
-		<code class="textarea" @mouseenter="onenter">
+		<code class="textarea" @mouseenter="onenter"
+			:style="{
+				'--hover-text-color': hoverColor || '#474747',
+				'--hover-background-color': hoverBackgroundColor || '#18eea1'
+			}">
 			<span>
 				{{text}}
 			</span>
@@ -46,19 +53,21 @@ async function copy(){
 }
 
 .textarea {
+	--hover-text-color: #474747;
+	--hover-background-color: #18eea1;
 	display: block;
 	padding: 0.2rem 1.5rem 0.2rem 0.4rem;
 	margin: 0.4rem;
 	border-radius: 0.5rem;
-	background-color: #f0f0f0;
+	background-color: var(--color-background-mute);
 	user-select: none;
 	white-space: nowrap;
 	transition: all 0.3s ease-out;
 }
 
 .box:hover>.textarea {
-	background-color: #18eea1;
-	color: #474747;
+	background-color: var(--hover-background-color);
+	color: var(--hover-text-color);
 }
 
 .textarea>span {
@@ -82,7 +91,7 @@ async function copy(){
 	display: flex;
 	justify-content: center;
 	position: absolute;
-	top: -100%;
+	top: calc(-100% - 0.1rem);
 	left: 50%;
 	width: 0;
 	height: 1.5rem;
@@ -92,7 +101,7 @@ async function copy(){
 	display: none;
 	height: 100%;
 	padding: 0.1rem 0.5rem;
-	border-radius: 0.7rem;
+	border-radius: 0.8rem;
 	background-color: #000d;
 	white-space: nowrap;
 	color: #e0e0e0;
@@ -107,6 +116,9 @@ async function copy(){
 .hint-click>span::after {
 	content: ' ';
 	display: block;
+	position: absolute;
+	top: 100%;
+	left: calc(50% - 0.5rem);
 	width: 0;
 	height: 0;
 	border: 0.5rem solid transparent;

@@ -1,7 +1,38 @@
 <script setup>
+import { onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
 import WebBox from 'vue-material-design-icons/WebBox.vue'
+import IconSun from './components/icons/IconSun.vue'
+import IconMoon from './components/icons/IconMoon.vue'
 import { i18nLangMap } from './i18n'
+
+const darkTheme = ref(document.documentElement.classList.contains('dark'))
+
+function switchTheme(){
+	if(darkTheme.value){
+		document.documentElement.classList.remove('dark')
+	}else{
+		document.documentElement.classList.add('dark')
+	}
+}
+
+const observer = new MutationObserver((mutationList) => {
+	for(let mutation of mutationList){
+		if(mutation.type === "attributes"){
+			if(mutation.attributeName === 'class'){
+				darkTheme.value = document.documentElement.classList.contains('dark')
+			}
+		}
+	}
+})
+
+onMounted(() => {
+	observer.observe(document.documentElement, { attributes: true })
+})
+
+onUnmounted(() => {
+	observer.disconnect()
+})
 
 </script>
 
@@ -13,7 +44,7 @@ import { i18nLangMap } from './i18n'
 		<nav class="header-nav">
 			<a href="/about">About</a>
 		</nav>
-		<div class="locale-changer">
+		<div class="locale-selector">
 			<label for="i18n-lang-select">
 				<WebBox class="flex-box" size="2rem" />
 			</label>
@@ -21,6 +52,10 @@ import { i18nLangMap } from './i18n'
 				<option v-for="locale in $i18n.availableLocales" :key="locale"
 					:value="locale">{{i18nLangMap[locale] || locale}}</option>
 			</select>
+		</div>
+		<div class="theme-button" @click="switchTheme">
+			<IconMoon v-if="darkTheme"/>
+			<IconSun v-else/>
 		</div>
 	</header>
 	<div id="body">
@@ -49,7 +84,7 @@ import { i18nLangMap } from './i18n'
 	width: 100%;
 	height: 3.5rem;
 	padding: 0 1rem;
-	background: #fdfdfd;
+	background: var(--color-background-soft);
 	box-shadow: 0 0 0.5rem #000a;
 	z-index: 10;
 }
@@ -66,7 +101,7 @@ import { i18nLangMap } from './i18n'
 	position: absolute;
 	left: 0;
 	bottom: 0;
-	background: #fcfbf4;
+	background: var(--color-background-soft);
 }
 
 .logo {
@@ -88,16 +123,27 @@ import { i18nLangMap } from './i18n'
 	padding: 0 0.5rem;
 }
 
-.locale-changer {
+.locale-selector {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
 	margin-right: 1rem;
 }
 
-.locale-changer>select {
+#i18n-lang-select {
 	width: 7rem;
-	height: 1.5rem;
+	height: 2rem;
+	border-radius: 0.3rem;
+	color: var(--color-text);
+	background-color: var(--color-background);
+}
+
+.theme-button {
+	width: 1.7rem;
+	height: 1.7rem;
+	padding: 0.25rem;
+	border-radius: 0.25rem;
+	background: var(--color-background-3);
 }
 
 </style>

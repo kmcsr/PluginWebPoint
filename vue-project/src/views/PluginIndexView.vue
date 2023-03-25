@@ -375,7 +375,7 @@ onUnmounted(() => {
 	padding: 0.3rem;
 	border-radius: 0 0 0.7rem 0.7rem;
 	box-shadow: #0007 0 0 0.1rem;
-	background-color: #fff;
+	background-color: var(--color-background);
 }
 
 .plugin-list-searchbox {
@@ -398,7 +398,7 @@ onUnmounted(() => {
 	padding-right: 0.5rem;
 	border-radius: 1rem;
 	border: none;
-	background-color: #e5e7eb;
+	background-color: var(--color-background-3);
 }
 
 .plugin-list-filter-box {
@@ -416,7 +416,7 @@ onUnmounted(() => {
 	padding-left: 0.3rem;
 	border-radius: 0.43rem;
 	border: none;
-	background-color: #e5e7eb;
+	background-color: var(--color-background-3);
 	box-shadow: #0008 0 0 0.1rem;
 	user-select: none;
 	cursor: pointer;
@@ -431,7 +431,7 @@ onUnmounted(() => {
 	width: 100%;
 	padding: 0.4rem;
 	border-radius: 0.3rem;
-	background-color: #e8e8e8;
+	background-color: var(--color-background-mute);
 }
 
 .plugin-filters>div {
@@ -464,7 +464,7 @@ onUnmounted(() => {
 	height: 2rem;
 	margin-left: 0.3rem;
 	border-radius: 0.3rem;
-	background: #e5e7eb;
+	background-color: var(--color-background-3);
 	cursor: pointer;
 }
 
@@ -475,7 +475,7 @@ onUnmounted(() => {
 	padding-left: 0.3rem;
 	border-radius: 0.43rem;
 	border: none;
-	background-color: #e5e7eb;
+	background-color: var(--color-background-3);
 }
 
 .plugin-list-pages {

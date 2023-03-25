@@ -5,6 +5,8 @@ import ClipboardText from 'vue-material-design-icons/ClipboardText.vue'
 const props = defineProps({
 	'text': String,
 	'fillColor': String,
+	'hoverColor': String,
+	'hoverBackgroundColor': String,
 })
 
 const showHint = ref(false)
@@ -23,7 +25,11 @@ async function copy(){
 
 <template>
 	<div>
-		<button class="clipboard" @click="copy" :title="$t('message.click_to_copy')">
+		<button class="clipboard" :style="{
+				'--hover-text-color': hoverColor || 'currentColor',
+				'--hover-background-color': hoverBackgroundColor || '#cacaca'
+			}"
+			@click="copy" :title="$t('message.click_to_copy')">
 			<ClipboardText :fill="fillColor" size="1.3rem"/>
 		</button>
 		<div class="hint">
@@ -39,6 +45,7 @@ async function copy(){
 <style scoped>
 
 .clipboard {
+	--hover-background-color: #cacaca;
 	width: 1.5rem;
 	height: 1.5rem;
 	padding: 0.1rem;
@@ -49,7 +56,7 @@ async function copy(){
 }
 
 .clipboard:hover {
-	background-color: #cacaca;
+	background-color: var(--hover-background-color);
 	cursor: pointer;
 }
 
