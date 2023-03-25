@@ -173,23 +173,26 @@ onUnmounted(() => {
 					</div>
 					<div class="flex-box">
 						<UpdateSvg class="flex-box" size="1.5rem" style="margin-right:0.2rem;"/>
-						{{ $t('message.lastRelease') }}:&nbsp;
-						<span v-if="data.lastRelease">{{fmtTimestamp(sinceDate(data.lastRelease), 1)}} {{ $t('word.ago') }}</span>
-						<span v-else><i>{{ $t('word.unknown') }}</i></span>
+						<span v-if="data.lastRelease">
+							{{ $t('message.lastRelease') }}&nbsp;
+							{{fmtTimestamp(sinceDate(data.lastRelease), 1)}}&nbsp;
+							{{ $t('word.ago') }}
+						</span>
+						<span v-else><i>{{ $t('word.no_release') }}</i></span>
 					</div>
 					<div v-if="data.github_sync" class="flex-box">
 						<SyncSvg class="flex-box" size="1.5rem" style="margin-right:0.2rem;"/>
 						{{ $t('message.synced_from_gh_1') }}
 						<Github class="flex-box" style="margin: 0 0.1rem;" size="1rem"/>
 						Github
-						{{ $t('message.synced_from_gh_2') }}:&nbsp;
+						{{ $t('message.synced_from_gh_2') }}&nbsp;
 						<span v-if="data.last_sync">{{fmtTimestamp(sinceDate(data.last_sync), 1)}} {{ $t('word.ago') }}</span>
 						<span v-else><i>{{ $t('word.unknown') }}</i></span>
 					</div>
 					<h3>
 						<div class="flex-box">
 							<BriefcaseDownload class="flex-box" size="1.5rem"/>
-							{{ $t('message.totalDownload') }}: {{data.downloads}}
+							{{ $t('message.totalDownload') }} {{data.downloads}}
 						</div>
 					</h3>
 					<h3>

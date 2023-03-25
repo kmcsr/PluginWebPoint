@@ -14,8 +14,17 @@ export const i18nLangMap = {
 export async function setupI18n(){
 	var lang = VueCookies.get('lang')
 	if(!lang){
-		$cookies.set('lang', 'en_us', '30d')
-		lang = 'en_us'
+		for(let l of window.navigator.languages){
+			l = l.toLowerCase().replace('-', '_')
+			if(l in i18nLangMap){
+				lang = l
+				break
+			}
+		}
+		if(!lang){
+			lang = 'en_us'
+		}
+		$cookies.set('lang', lang, '30d')
 	}
 	console.log('cached lang:', lang)
 	const _i18n = createI18n({

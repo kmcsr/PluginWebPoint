@@ -40,7 +40,9 @@
 		"download_count": "下载量",
 		"size": "大小",
 		"ago": "前",
-		"published_at": "上传于"
+		"published_at": "上传于",
+		"unknown": "未知",
+		"no_release": "未发布任何版本"
 	},
 	"label": {
 		"information": "信息",

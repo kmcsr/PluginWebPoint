@@ -45,9 +45,14 @@ defineProps({
 			</div>
 			<div>
 				<UpdateSvg class="flex-box" size="1.5rem" style="margin-right:0.2rem;"/>
-				{{ $t('message.release_pre') }} 
-				<b class="plugin-updated">{{fmtTimestamp(sinceDate(data.lastRelease), 1)}}</b>
-				{{ $t('word.ago') }}
+				<span v-if="data.lastRelease">
+					{{ $t('message.release_pre') }} 
+					<b class="plugin-updated">{{fmtTimestamp(sinceDate(data.lastRelease), 1)}}</b>
+					{{ $t('word.ago') }}
+				</span>
+				<span v-else>
+					<b><i>{{ $t('word.no_release') }} </i></b>
+				</span>
 			</div>
 		</div>
 	</article>

@@ -1,19 +1,32 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
+import VueCookies from 'vue-cookies'
 import WebBox from 'vue-material-design-icons/WebBox.vue'
 import IconSun from './components/icons/IconSun.vue'
 import IconMoon from './components/icons/IconMoon.vue'
 import { i18nLangMap } from './i18n'
 
-const darkTheme = ref(document.documentElement.classList.contains('dark'))
+const darkTheme = ((function(){
+	var themecookie = VueCookies.get('theme')
+	var isdark = document.documentElement.classList.contains('dark') || themecookie === 'dark' ||
+		(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+	$cookies.set('theme', isdark?'dark':'light', '30d')
+	if(isdark){
+		document.documentElement.classList.add('dark')
+	}else{
+		document.documentElement.classList.remove('dark')
+	}
+	return ref(isdark)
+})())
 
 function switchTheme(){
-	if(darkTheme.value){
-		document.documentElement.classList.remove('dark')
-	}else{
+	if(darkTheme.value = !darkTheme.value){
 		document.documentElement.classList.add('dark')
+	}else{
+		document.documentElement.classList.remove('dark')
 	}
+	$cookies.set('theme', darkTheme.value?'dark':'light', '30d')
 }
 
 const observer = new MutationObserver((mutationList) => {

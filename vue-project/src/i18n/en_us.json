@@ -40,7 +40,9 @@
 		"size": "Size",
 		"download_count": "Downloads",
 		"ago": "ago",
-		"published_at": "Published at"
+		"published_at": "Published at",
+		"unknown": "Unknown",
+		"no_release": "No releases published"
 	},
 	"label": {
 		"information": "Information",
