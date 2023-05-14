@@ -170,7 +170,7 @@ type Release struct{
 	Meta any `json:"meta"`
 }
 
-const CurrenReleaseSchemaVersion = 6
+const CurrenReleaseSchemaVersion = 7
 type PluginRelease struct{
 	SchemaVersion int `json:"schema_version"`
 	Id string `json:"id"`

@@ -2,6 +2,8 @@
 const linkPattern = /<(https?:\/\/\S+(?:\.\S+)*\b\S*|mailto:\S+@\S+(?:\.\S+)*)>/
 const namedLinkPattern = /\[([^\[\]]+)\]\((https?:\/\/\S+(?:\.\S+)*\b\S*|mailto:\S+@\S+(?:\.\S+)*)\)/
 
+const codePatten = /(`+)([^\1]+?)\1/
+
 export const nodeToString = (function(){
 	const box = document.createElement('div')
 	if('outerHTML' in box){
@@ -53,8 +55,28 @@ export function parseLinks(content){
 	return output
 }
 
+export function parseCodes(content){
+	var output = ''
+	while(content){
+		let group = codePatten.exec(content)
+		if(!group){
+			break
+		}
+		let [full, _, codes] = group
+		output += escapeHtml(content.substring(0, group.index))
+		content = content.substring(group.index + full.length)
+		let obj = document.createElement('code')
+		obj.innerText = codes
+		output += nodeToString(obj)
+	}
+	if(content){
+		output += escapeHtml(content)
+	}
+	return output
+}
+
 export function parse(content){
-	return parseLinks(content)
+	return parseLinks(parseCodes(content))
 }
 
 export default {

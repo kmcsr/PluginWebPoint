@@ -15,11 +15,11 @@ defineProps({
 <template>
 	<article class="plugin-item">
 		<div class="plugin-body">
-			<div class="name">
+			<h1 class="name">
 				<RouterLink :to="'/plugin/' + data.id">
 					{{data.name}}
 				</RouterLink>
-			</div>
+			</h1>
 			<div class="authors">
 				--
 				<span v-for="(author, i) in data.authors">

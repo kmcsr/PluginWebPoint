@@ -1,26 +1,23 @@
-# syntax=docker/dockerfile:1.2
+# syntax=docker/dockerfile:1
 
 ARG GO_VERSION=1.20
 ARG REPO=github.com/kmcsr/PluginWebPoint
 ARG SUB_FOLDER=handlers/v1
-ARG OUT_NAME=application
 
 FROM golang:${GO_VERSION}-alpine AS BUILD
 
 ARG REPO
 ARG SUB_FOLDER
-ARG OUT_NAME
 
 COPY ./go.mod ./go.sum "/go/src/${REPO}/"
 COPY "./api" "/go/src/${REPO}/api"
 COPY "./$SUB_FOLDER" "/go/src/${REPO}/${SUB_FOLDER}"
 RUN --mount=type=cache,target=/root/.cache/go-build cd "/go/src/${REPO}" && \
- CGO_ENABLED=0 go build -v -o "/go/bin/${OUT_NAME}" "./${SUB_FOLDER}"
+ CGO_ENABLED=0 go build -v -o "/go/bin/application" "./${SUB_FOLDER}"
 
 FROM alpine:latest
 
-ARG OUT_NAME
+COPY --from=BUILD "/go/bin/application" "/application"
 
-COPY --from=BUILD "/go/bin/${OUT_NAME}" "/${OUT_NAME}"
-
-CMD exec "/${OUT_NAME}"
+ENTRYPOINT ["/application"]
+CMD [":80"]

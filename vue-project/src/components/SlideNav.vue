@@ -104,7 +104,7 @@ onMounted(() => {
 	
 .nav {
 	height: 2rem;
-	border-bottom: 0.05rem #000 solid;
+	border-bottom: 0.05rem var(--color-border-hover) solid;
 	z-index: 10;
 }
 

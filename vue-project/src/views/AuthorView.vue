@@ -1,10 +1,14 @@
 <script setup>
 
+const props = defineProps({
+	'author': String,
+})
+
 </script>
 
 <template>
 	<main>
-		TODO
+		TODO: author: "{{author}}""
 	</main>
 </template>
 

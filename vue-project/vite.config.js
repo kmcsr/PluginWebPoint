@@ -8,7 +8,7 @@ import vueJsx from '@vitejs/plugin-vue-jsx'
 export default defineConfig(async ({ command, mode }) => {
 	console.log(command, mode);
 	const isdev = mode === 'development';
-	const minify = !isdev;
+	const minify = isdev ?'' :'esbuild';
 
 	return {
 		plugins: [vue(), vueJsx()],
@@ -21,6 +21,9 @@ export default defineConfig(async ({ command, mode }) => {
 		mode: mode,
 		build: {
 			minify: minify,
+		},
+		esbuild: {
+			pure: mode === 'production' ? ['console.debug'] : [],
 		}
 	}
 })

@@ -97,6 +97,7 @@ func main(){
 
 	app.Use(func(ctx iris.Context){
 		ctx.Header(irisContext.CacheControlHeaderKey, "public")
+		ctx.Header("Access-Control-Allow-Origin", "*")
 		ctx.Next()
 	})
 

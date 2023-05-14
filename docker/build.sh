@@ -1,7 +1,7 @@
 #!/bin/bash
 
 PUBLIC_PREFIX=craftmine/pwp
-platform=linux/amd64
+BUILD_PLATFORMS=(linux/amd64) #linux/arm64
 
 NPM_DIR=vue-project
 
@@ -9,6 +9,7 @@ cd $(dirname $0)
 
 function build(){
 	tag=$1
+	platform=$2
 	fulltag="${PUBLIC_PREFIX}:${tag}"
 	echo
 	echo "==> building $fulltag from Dockerfile.$tag"
@@ -29,5 +30,9 @@ cur="${PWD}"
 cd "../$NPM_DIR"
 npm run build || exit $?
 cd "$cur"
-build web || exit $?
-build v1 || exit $?
+
+for platform in "${BUILD_PLATFORMS[@]}"; do
+	build web $platform || exit $?
+	build ghupdater $platform || exit $?
+	build v1 $platform || exit $?
+done

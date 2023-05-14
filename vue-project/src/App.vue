@@ -52,7 +52,7 @@ onUnmounted(() => {
 <template>
 	<header id="header">
 		<div class="logo">
-			<b>LOGO required</b>
+			<b>LOGO REQ</b>
 		</div>
 		<nav class="header-nav">
 			<a href="/about">About</a>
