@@ -23,7 +23,7 @@ function build(){
 		docker tag "$fulltag" "${fulltag}-${TAG}" || return $?
 		echo "==> pushing $fulltag ${fulltag}-${TAG}"
 		echo
-		docker push "$fulltag" "${fulltag}-${TAG}" || return $?
+		(docker push "$fulltag" && docker push "${fulltag}-${TAG}") || return $?
 	fi
 	return 0
 }

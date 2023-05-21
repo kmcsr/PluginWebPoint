@@ -30,9 +30,6 @@ services:
       DB_PASSWD: pwp_password
       DB_ADDR: tcp(db:3306)
       DB_NAME: pluginDatabase
-    secrets:
-      - GH_CLI_ID_pwp
-      - GH_CLI_SEC_pwp
   web:
     image: craftmine/pwp:web
     restart: always
@@ -69,9 +66,6 @@ services:
       DB_PASSWD: pwp_password
       DB_ADDR: tcp(db:3306)
       DB_NAME: pluginDatabase
-    secrets:
-      - GH_CLI_ID_pwp
-      - GH_CLI_SEC_pwp
   reverse_proxy:
     image: craftmine/pwp:reverse_proxy
     depends_on:
