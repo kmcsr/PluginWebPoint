@@ -52,7 +52,9 @@ onUnmounted(() => {
 <template>
 	<header id="header">
 		<div class="logo">
-			<b>LOGO REQ</b>
+			<a href="/">
+				<img src="/assets/favicon.png">
+			</a>
 		</div>
 		<nav class="header-nav">
 			<a href="/about">About</a>
@@ -117,8 +119,18 @@ onUnmounted(() => {
 	background: var(--color-background-soft);
 }
 
-.logo {
-	/*margin-right: 1rem;*/
+.logo>a {
+	display: inline-block;
+	height: 3rem;
+}
+
+.logo>a:hover {
+	background-color: unset;
+}
+
+.logo img {
+	height: 3rem;
+	width: 3rem;
 }
 
 .header-nav {
@@ -134,6 +146,7 @@ onUnmounted(() => {
 	align-items: center;
 	height: 100%;
 	padding: 0 0.5rem;
+	font-weight: 700;
 }
 
 .locale-selector {
