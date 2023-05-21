@@ -19,9 +19,12 @@ function build(){
 	 --file "Dockerfile.$tag" \
 	 .. || return $?
 	echo
-	echo "==> pushing $fulltag"
-	echo
-	docker push "$fulltag" || return $?
+	if [ -n "$TAG" ]; then
+		docker tag "$fulltag" "${fulltag}-${TAG}" || return $?
+		echo "==> pushing $fulltag ${fulltag}-${TAG}"
+		echo
+		docker push "$fulltag" "${fulltag}-${TAG}" || return $?
+	fi
 	return 0
 }
 
@@ -35,4 +38,5 @@ for platform in "${BUILD_PLATFORMS[@]}"; do
 	build web $platform || exit $?
 	build ghupdater $platform || exit $?
 	build v1 $platform || exit $?
+	build reverse_proxy $platform || exit $?
 done

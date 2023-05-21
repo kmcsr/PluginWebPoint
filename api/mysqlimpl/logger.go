@@ -2,6 +2,8 @@
 package mysqlimpl
 
 import (
+	"io"
+
 	"github.com/kmcsr/go-logger"
 	"github.com/kmcsr/go-logger/logrus"
 
@@ -18,4 +20,8 @@ func initLogger()(loger logger.Logger){
 		loger.SetLevel(logger.InfoLevel)
 	}
 	return
+}
+
+func SetLoggerOutput1(w io.Writer){
+	loger.SetOutput(w)
 }

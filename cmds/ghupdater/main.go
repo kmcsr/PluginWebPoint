@@ -33,6 +33,11 @@ func initLogger()(loger logger.Logger){
 	loger = logrus.Logger
 	if os.Getenv("DEBUG") == "true" {
 		loger.SetLevel(logger.TraceLevel)
+	}else{
+		_, err := logger.OutputToFile(loger, "/var/log/pwp/ghupdater/latest.log", os.Stdout)
+		if err != nil {
+			panic(err)
+		}
 	}
 	return
 }
@@ -329,7 +334,7 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 10)
 	defer cancel()
 
 	conn, err := getDBConn(ctx)

@@ -16,6 +16,8 @@ import (
 	"github.com/kataras/iris/v12"
 	irisContext "github.com/kataras/iris/v12/context"
 	"github.com/kataras/iris/v12/middleware/recover"
+	"github.com/kmcsr/go-logger"
+	lgolog "github.com/kmcsr/go-logger/golog"
 	"github.com/kmcsr/PluginWebPoint/api"
 	"github.com/kmcsr/PluginWebPoint/api/mysqlimpl"
 )
@@ -48,7 +50,6 @@ func NewErrResp(name string, err error)(*ErrResp){
 }
 
 var apiIns api.API = nil
-var ghCli = api.InitGithubCli()
 
 func main(){
 	address := ""
@@ -61,15 +62,21 @@ func main(){
 	dbaddress := os.Getenv("DB_ADDR")
 	database := os.Getenv("DB_NAME")
 
-	apiIns = mysqlimpl.NewMySqlAPI(username, passwd, dbaddress, database, ghCli)
+	apiIns = mysqlimpl.NewMySqlAPI(username, passwd, dbaddress, database, nil)
 
 	app := iris.New()
 	app.SetName("[V1-API]")
-	app.Logger().SetOutput(os.Stdout)
+	loger := &lgolog.GologWrapper{app.Logger()}
 	if api.DEBUG {
 		app.Logger().SetLevel("debug")
 	}else{
 		app.Logger().SetLevel("info")
+		out, err := logger.OutputToFile(loger, "/var/log/pwp/v1/latest.log", os.Stdout)
+		if err != nil {
+			panic(err)
+		}
+		api.SetLoggerOutput(out)
+		mysqlimpl.SetLoggerOutput1(out)
 	}
 	app.Logger().SetTimeFormat("2006-01-02 15:04:05.000:")
 	app.Logger().Debugf("V1 API Debug mode on")

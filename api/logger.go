@@ -2,6 +2,7 @@
 package api
 
 import (
+	"io"
 	"os"
 
 	"github.com/kmcsr/go-logger"
@@ -20,4 +21,8 @@ func initLogger()(loger logger.Logger){
 	}
 	loger.Debug("API Logger debug mode on")
 	return
+}
+
+func SetLoggerOutput(w io.Writer){
+	loger.SetOutput(w)
 }

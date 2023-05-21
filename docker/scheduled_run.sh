@@ -16,10 +16,11 @@ if ! git --version; then
 fi
 
 while true; do
+	sleep 5 # wait for sql online, since docker compose cannot ensure this
 	echo
 	echo "Running: $program"
 	echo
-	"$program" >> "${program}.log" 2>&1
+	"$program"
 	echo 'Exit status:' $?
 	echo '==> Done'
 	echo

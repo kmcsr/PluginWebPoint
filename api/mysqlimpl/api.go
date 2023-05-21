@@ -49,6 +49,10 @@ func NewMySqlAPI(username string, passwd string, address string, database string
 	if err = api.DB.PingContext(ctx); err != nil {
 		loger.Fatalf("Cannot ping to database: %v", err)
 	}
+
+	if api.GithubCli == nil {
+		api.GithubCli = InitGithubCli()
+	}
 	return
 }
 
@@ -354,16 +358,16 @@ func (api *MySqlAPI)GetPluginReadme(id string)(content Content, err error){
 	baseurl0 := baseurl + "?ref=" + info.RepoBranch
 	url1 := url0 + "?ref=" + info.RepoBranch
 	loger.Debugf("Getting readme for %s at %q", id, url1)
-	res, err = GithubCli.Get(url1)
+	res, err = api.GithubCli.Get(url1)
 	if e, ok := err.(*StatusCodeErr); ok && e.Code == http.StatusNotFound {
 		loger.Debugf("Getting readme with default branch for %s at %q", id, url0)
-		res, err = GithubCli.Get(url0)
+		res, err = api.GithubCli.Get(url0)
 		if e, ok := err.(*StatusCodeErr); ok && e.Code == http.StatusNotFound {
 			loger.Debugf("Getting root readme for %s at %q", id, baseurl0)
-			res, err = GithubCli.Get(baseurl0)
+			res, err = api.GithubCli.Get(baseurl0)
 			if e, ok := err.(*StatusCodeErr); ok && e.Code == http.StatusNotFound {
 				loger.Debugf("Getting root readme with default branch for %s at %q", id, baseurl)
-				res, err = GithubCli.Get(baseurl)
+				res, err = api.GithubCli.Get(baseurl)
 			}
 		}
 	}
@@ -496,7 +500,7 @@ func (api *MySqlAPI)GetPluginReleaseAsset(id string, tag Version, filename strin
 	}
 	var resp *http.Response
 	loger.Debugf("Downloading %q", release.GithubUrl)
-	if resp, err = GithubCli.Get(release.GithubUrl); err != nil {
+	if resp, err = api.GithubCli.Get(release.GithubUrl); err != nil {
 		return
 	}
 	defer resp.Body.Close()

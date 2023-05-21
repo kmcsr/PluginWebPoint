@@ -1,0 +1,8 @@
+{
+	"host": "",
+	"port": 80,
+	"web": "http://web:80",
+	"apis": {
+		"v1": "http://api_v1:80"
+	}
+}

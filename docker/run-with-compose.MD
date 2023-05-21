@@ -1,0 +1,5 @@
+
+# Run with docker compose
+
+
+

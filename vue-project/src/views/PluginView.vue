@@ -223,9 +223,9 @@ onUnmounted(() => {
 						<div>
 							<h3>{{ $t('message.plugin_ingame_install_cmd') }}</h3>
 							<p style="text-indent:0.5rem;">
-								<RouterLink to="/plugin/aluminum">
+								<a href="/plugin/aluminum">
 									<b><i>(Aluminum required)</i></b>
-								</RouterLink>
+								</a>
 							</p>
 							<CopyableText :text="`!!al i ${plugin}`"
 								hover-color="#e6e6e6"
@@ -292,7 +292,7 @@ onUnmounted(() => {
 					<h2>{{ $t('word.releases') }}</h2>
 					<div v-if="dataReleases">
 						<div class="plugin-release" v-for="r in dataReleases">
-							<a :href="`/download/${r.id}/${r.tag}/${r.filename}`">
+							<a :href="`/download/${r.id}/${r.tag}/${r.filename}`" rel="nofollow">
 								<DownloadBox class="flex-box release-download-icon" size="2rem"/>
 								<div class="release-type-box">
 									<div class="release-head">

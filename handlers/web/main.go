@@ -41,6 +41,10 @@ func getLogger()(loger logger.Logger){
 		loger.Debug("Debug mode on")
 	}else{
 		loger.SetLevel(logger.InfoLevel)
+		_, err := logger.OutputToFile(loger, "/var/log/pwp/web/latest.log", os.Stdout)
+		if err != nil {
+			panic(err)
+		}
 	}
 	return
 }
@@ -57,7 +61,7 @@ func main(){
 	// address := os.Getenv("DB_ADDR")
 	// database := os.Getenv("DB_NAME")
 
-	// apiIns = mysqlimpl.NewMySqlAPI(username, passwd, address, database)
+	// apiIns = mysqlimpl.NewMySqlAPI(username, passwd, address, database, nil)
 
 	now := time.Now()
 

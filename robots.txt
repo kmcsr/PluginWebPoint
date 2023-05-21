@@ -3,7 +3,7 @@ User-agent: *
 
 Allow: /
 
-# Apis, cannot disallow for CSR
+# APIs, cannot disallow for CSR
 # DisAllow: /dev
 # DisAllow: /v1
 

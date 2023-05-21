@@ -41,7 +41,7 @@ export function parseLinks(content){
 		}else{
 			[full, name, target] = group
 		}
-		output += escapeHtml(content.substring(0, group.index))
+		output += content.substring(0, group.index)
 		content = content.substring(group.index + full.length)
 		let obj = document.createElement('a')
 		obj.innerText = name
@@ -50,7 +50,7 @@ export function parseLinks(content){
 		output += nodeToString(obj)
 	}
 	if(content){
-		output += escapeHtml(content)
+		output += content
 	}
 	return output
 }
@@ -63,20 +63,22 @@ export function parseCodes(content){
 			break
 		}
 		let [full, _, codes] = group
-		output += escapeHtml(content.substring(0, group.index))
+		output += content.substring(0, group.index)
 		content = content.substring(group.index + full.length)
 		let obj = document.createElement('code')
 		obj.innerText = codes
 		output += nodeToString(obj)
 	}
 	if(content){
-		output += escapeHtml(content)
+		output += content
 	}
 	return output
 }
 
 export function parse(content){
-	return parseLinks(parseCodes(content))
+	let out = parseCodes(escapeHtml(content))
+	out = parseLinks(out)
+	return out
 }
 
 export default {

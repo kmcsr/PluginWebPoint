@@ -37,10 +37,4 @@
       "cmd": ["npm", "run", "dev"],
     },
   ],
-  /*"folders":
-  [
-		{
-			"path": "/Users/ckpn/Mine/projects/golang/src/github.com/kmcsr"
-		}
-	],*/
 }

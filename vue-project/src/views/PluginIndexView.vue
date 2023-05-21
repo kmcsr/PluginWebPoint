@@ -86,7 +86,7 @@ async function refreshData(){
 		data.value = await getPluginList()
 		return data.value
 	}catch(err){
-		if(err.response && err.response.data){
+		if(err.response && typeof err.response.data === 'object'){
 			errorText.value = err.response.data.err + ': ' + err.response.data.message
 		}else{
 			errorText.value = err.code + ': ' + err.message

@@ -2,7 +2,7 @@
 
 ARG GO_VERSION=1.20
 ARG REPO=github.com/kmcsr/PluginWebPoint
-ARG SUB_FOLDER=cmds/plugin_web_point
+ARG SUB_FOLDER=handlers/web
 
 FROM golang:${GO_VERSION}-alpine AS BUILD
 

@@ -1,0 +1,95 @@
+
+services:
+  db:
+    image: mysql:latest
+    restart: always
+    volumes:
+      - pwp-logs:/var/log
+      - pwp-db:/var/lib/mysql
+    networks:
+      - pwebpoint
+    environment:
+      MYSQL_DATABASE: pluginDatabase # must be sync from init.sql
+      MYSQL_USER: pwp_user
+      MYSQL_PASSWORD: pwp_password
+      MYSQL_ALLOW_EMPTY_PASSWORD: yes # don't have to public the database, no need to encrypt it
+      MYSQL_INITDB_SKIP_TZINFO: yes
+  ghupdater:
+    image: craftmine/pwp:ghupdater
+    restart: always
+    stop_signal: SIGKILL # use sigkill to stop container immediately because the init process won't pass the signals
+    depends_on:
+      - db
+    volumes:
+      - pwp-logs:/var/log
+    networks:
+      - pwebpoint
+    environment:
+      DEBUG: '${DEBUG}'
+      DB_USER: pwp_user
+      DB_PASSWD: pwp_password
+      DB_ADDR: tcp(db:3306)
+      DB_NAME: pluginDatabase
+    secrets:
+      - GH_CLI_ID_pwp
+      - GH_CLI_SEC_pwp
+  web:
+    image: craftmine/pwp:web
+    restart: always
+    # depends_on:
+    #   - db
+    volumes:
+      - pwp-logs:/var/log
+      - type: bind
+        source: ./gh_secrets.json
+        target: /etc/pwp/gh_secrets.json
+    networks:
+      - pwebpoint
+    environment:
+      DEBUG: '${DEBUG}'
+      # DB_USER: pwp_user
+      # DB_PASSWD: pwp_password
+      # DB_ADDR: tcp(db:3306)
+      # DB_NAME: pluginDatabase
+  api_v1:
+    image: craftmine/pwp:v1
+    restart: always
+    depends_on:
+      - db
+    volumes:
+      - pwp-logs:/var/log
+      - type: bind
+        source: ./gh_secrets.json
+        target: /etc/pwp/gh_secrets.json
+    networks:
+      - pwebpoint
+    environment:
+      DEBUG: '${DEBUG}'
+      DB_USER: pwp_user
+      DB_PASSWD: pwp_password
+      DB_ADDR: tcp(db:3306)
+      DB_NAME: pluginDatabase
+    secrets:
+      - GH_CLI_ID_pwp
+      - GH_CLI_SEC_pwp
+  reverse_proxy:
+    image: craftmine/pwp:reverse_proxy
+    depends_on:
+      - web
+      - api_v1
+    networks:
+      - pwebpoint
+    environment:
+      DEBUG: '${DEBUG}'
+    ports:
+      - "2080:80"
+    volumes:
+      - pwp-logs:/var/log
+
+volumes:
+  pwp-logs: {}
+  pwp-db: {}
+
+networks:
+  pwebpoint:
+    name: pwp_backend_network

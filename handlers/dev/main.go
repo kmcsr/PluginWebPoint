@@ -51,7 +51,6 @@ func NewErrResp(name string, err error)(*ErrResp){
 
 var sitePrefix string = "https://mcdr.waerba.com"
 var apiIns api.API = nil
-var ghCli = api.InitGithubCli()
 
 func main(){
 	address := ""
@@ -64,7 +63,7 @@ func main(){
 	dbaddress := os.Getenv("DB_ADDR")
 	database := os.Getenv("DB_NAME")
 
-	apiIns = mysqlimpl.NewMySqlAPI(username, passwd, dbaddress, database, ghCli)
+	apiIns = mysqlimpl.NewMySqlAPI(username, passwd, dbaddress, database, nil)
 
 	app := iris.New()
 	app.SetName("[DEV-API]")

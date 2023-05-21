@@ -27,10 +27,10 @@ function build_watch(){
 }
 
 function build_app(){
-	rm -rf "./cmds/plugin_web_point/dist"
-	cp -a "${NPM_DIR}/dist" "./cmds/plugin_web_point/dist"
+	rm -rf "./handlers/web/dist"
+	cp -a "${NPM_DIR}/dist" "./handlers/web/dist"
 
-	CGO_ENABLED=0 go build -o ./output/plugin_web_point ./cmds/plugin_web_point
+	CGO_ENABLED=0 go build -o ./output/plugin_web_point ./handlers/web
 	return $?
 }
 

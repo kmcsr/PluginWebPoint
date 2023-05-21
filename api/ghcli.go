@@ -41,13 +41,20 @@ type GhClient struct{
 	getChMux sync.RWMutex
 }
 
-var GithubCli = &GhClient{
-	cli: &http.Client{
-		Timeout: time.Second * 5,
-	},
-	appId: os.Getenv("GH_CLI_ID"),
-	appSecret: os.Getenv("GH_CLI_SEC"),
-	getCache: make(map[string]resCache),
+func readCliSecrets()(id string, secret string, ok bool){
+	const secretFile = "/etc/pwp/gh_secrets.json"
+	var cfg struct{
+		Id     string `json:"id"`
+		Secret string `json:"secret"`
+	}
+	data, err := os.ReadFile(secretFile)
+	if err != nil {
+		return
+	}
+	if err = json.Unmarshal(data, &cfg); err != nil {
+		return
+	}
+	return cfg.Id, cfg.Secret, true
 }
 
 func InitGithubCli()(c *GhClient){
@@ -58,6 +65,14 @@ func InitGithubCli()(c *GhClient){
 		appId: os.Getenv("GH_CLI_ID"),
 		appSecret: os.Getenv("GH_CLI_SEC"),
 		getCache: make(map[string]resCache),
+	}
+	if id, secret, ok := readCliSecrets(); ok {
+		if c.appId == "" {
+			c.appId = id
+		}
+		if c.appSecret == "" {
+			c.appSecret = secret
+		}
 	}
 	if len(c.appId) > 0 {
 		if os.Getenv("GH_OAUTH") == "true" {

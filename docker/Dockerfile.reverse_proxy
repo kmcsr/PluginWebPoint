@@ -2,7 +2,7 @@
 
 ARG GO_VERSION=1.20
 ARG REPO=github.com/kmcsr/PluginWebPoint
-ARG SUB_FOLDER=cmds/ghupdater
+ARG SUB_FOLDER=cmds/reverse_proxy
 
 FROM golang:${GO_VERSION}-alpine AS BUILD
 
@@ -17,7 +17,8 @@ RUN --mount=type=cache,target=/root/.cache/go-build cd "/go/src/${REPO}" && \
 
 FROM alpine:latest
 
-COPY --from=BUILD "/go/bin/application" "/ghupdater"
-COPY "./docker/scheduled_run.sh" "/scheduled_run.sh"
+COPY "./docker/reverse_proxy_config.json" "/etc/pwp/rpx/config.json"
+COPY --from=BUILD "/go/bin/application" "/application"
 
-CMD [ "/bin/sh", "/scheduled_run.sh", "/ghupdater", "3000" ]
+ENTRYPOINT ["/application"]
+CMD [":80"]
