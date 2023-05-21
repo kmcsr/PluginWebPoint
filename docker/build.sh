@@ -31,6 +31,7 @@ function build(){
 echo
 cur="${PWD}"
 cd "../$NPM_DIR"
+npm install || exit $?
 npm run build || exit $?
 cd "$cur"
 
