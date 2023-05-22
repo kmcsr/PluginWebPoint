@@ -56,9 +56,9 @@ and [docker](https://docs.docker.com/get-docker/) is already installed.
 	You will get the db-container's name which in this example is `docker-db-1`,
 	then you have to init the database by executing the `init.sql`
 	```shell
-	docker exec -i docker-db-1 mysql -u root <./init.sql
+	docker exec -i docker-db-1 mysql -h localhost -u root <./init.sql
 	```
-	and restart ghupdater (or actually you can wait it auto refresh for an hour)
+	and restart ghupdater (or actually you can wait it auto refresh after an hour)
 	```shell
 	docker restart docker-ghupdater-1
 	```
