@@ -1,18 +1,20 @@
 import { nextTick, watch } from 'vue'
-import VueCookies from 'vue-cookies'
 import { createI18n } from 'vue-i18n'
+import { LANG_COOKIE, i18nLangMap } from './consts'
+
+export { LANG_COOKIE, i18nLangMap }
 
 const defaultOptions = { locale: 'en', fallbackLocale: 'en' }
 
 var i18n = null;
 
-export const i18nLangMap = {
-	'en_us': 'English',
-	'zh_cn': '简体中文',
-}
+const onClient = typeof document !== 'undefined'
 
-export async function setupI18n(){
-	var lang = VueCookies.get('lang')
+export async function setupI18n(lang){
+	const cookies = onClient ?await import('vue-cookies') :null
+	if(!lang){
+		lang = (await import('vue-cookies')).get(LANG_COOKIE)
+	}
 	if(!lang){
 		for(let l of window.navigator.languages){
 			l = l.toLowerCase().replace('-', '_')
@@ -24,9 +26,11 @@ export async function setupI18n(){
 		if(!lang){
 			lang = 'en_us'
 		}
-		$cookies.set('lang', lang, '30d')
+		if(onClient){
+			cookies.set(LANG_COOKIE, lang, '30d')
+		}
 	}
-	console.log('cached lang:', lang)
+	console.debug('cached lang:', lang)
 	const _i18n = createI18n({
 		legacy: false,
 		fallbackLocale: 'en_us',
@@ -35,10 +39,12 @@ export async function setupI18n(){
 			'zh_cn': await import('../i18n/zh_cn.json'),
 		}
 	})
-	watch(_i18n.global.locale, (v) => {
-		console.log('setting cookie:', v)
-		$cookies.set('lang', v, '30d')
-	})
+	if(onClient){
+		watch(_i18n.global.locale, (v) => {
+			console.debug('setting cookie:', v)
+			cookies.set(LANG_COOKIE, v, '30d')
+		})
+	}
 	i18n = _i18n
 	setI18nLanguage(lang)
 	return _i18n
@@ -49,7 +55,9 @@ export function setI18nLanguage(locale){
 		locale = i18n.global.fallbackLocale.value
 	}
 	i18n.global.locale.value = locale
-	document.getElementsByTagName('html')[0].setAttribute('lang', locale)
+	if(onClient){
+		document.getElementsByTagName('html')[0].setAttribute('lang', locale)
+	}
 }
 
 export async function loadLocaleMessages(locale){

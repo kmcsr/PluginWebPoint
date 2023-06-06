@@ -1,21 +1,21 @@
 
-const linkPattern = /<(https?:\/\/\S+(?:\.\S+)*\b\S*|mailto:\S+@\S+(?:\.\S+)*)>/
-const namedLinkPattern = /\[([^\[\]]+)\]\((https?:\/\/\S+(?:\.\S+)*\b\S*|mailto:\S+@\S+(?:\.\S+)*)\)/
+const linkPattern = /<(https?:\/\/[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(?:\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})*?\S*?|mailto:\S+?@[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(?:\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})*?)>/
+const namedLinkPattern = /\[([^\[\]]+)\]\((https?:\/\/[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(?:\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})*?\S*?|mailto:\S+?@[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(?:\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})*?)\)/
 
 const codePatten = /(`+)([^\1]+?)\1/
 
-export const nodeToString = (function(){
-	const box = document.createElement('div')
-	if('outerHTML' in box){
-		return function _nodeToString(node){
-			return node.outerHTML
-		}
-	}
-	return function _nodeToString(node){
-		box.replaceChildren(node)
-		return box.innerHTML
-	}
-})()
+// export const nodeToString = (function(){
+// 	const box = document.createElement('div')
+// 	if('outerHTML' in box){
+// 		return function _nodeToString(node){
+// 			return node.outerHTML
+// 		}
+// 	}
+// 	return function _nodeToString(node){
+// 		box.replaceChildren(node)
+// 		return box.innerHTML
+// 	}
+// })()
 
 export function escapeHtml(content){
 	return content
@@ -43,11 +43,12 @@ export function parseLinks(content){
 		}
 		output += content.substring(0, group.index)
 		content = content.substring(group.index + full.length)
-		let obj = document.createElement('a')
-		obj.innerText = name
-		obj.href = target
-		obj.rel = 'nofollow'
-		output += nodeToString(obj)
+		// let obj = document.createElement('a')
+		// obj.innerText = name
+		// obj.href = target
+		// obj.rel = 'nofollow'
+		// output += nodeToString(obj)
+		output += `<a href="${escape(target)}" ref="nofollow">${escapeHtml(name)}</a>`
 	}
 	if(content){
 		output += content
@@ -65,9 +66,10 @@ export function parseCodes(content){
 		let [full, _, codes] = group
 		output += content.substring(0, group.index)
 		content = content.substring(group.index + full.length)
-		let obj = document.createElement('code')
-		obj.innerText = codes
-		output += nodeToString(obj)
+		// let obj = document.createElement('code')
+		// obj.innerText = codes
+		// output += nodeToString(obj)
+		output += `<code>${escapeHtml(name)}</code>`
 	}
 	if(content){
 		output += content

@@ -1,4 +1,4 @@
-<script setup>
+ <script setup>
 import { onMounted, onUnmounted, nextTick, ref, computed, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useRequest } from 'vue-request'
@@ -223,9 +223,9 @@ onUnmounted(() => {
 						<div>
 							<h3>{{ $t('message.plugin_ingame_install_cmd') }}</h3>
 							<p style="text-indent:0.5rem;">
-								<a href="/plugin/aluminum">
+								<RouterLink to="/plugin/aluminum">
 									<b><i>(Aluminum required)</i></b>
-								</a>
+								</RouterLink>
 							</p>
 							<CopyableText :text="`!!al i ${plugin}`"
 								hover-color="#e6e6e6"
@@ -235,7 +235,7 @@ onUnmounted(() => {
 				</section>
 			</div>
 			<div class="plugin-main-box">
-				<SlideNav :data="navData" between="0.8rem" default="readme" v-model:active="navActive" :replace="true"/>
+				<SlideNav :data="navData" between="0.2rem" default="readme" v-model:active="navActive" :replace="true"/>
 				<article v-if="navActive === 'readme'" class="markdown-body plugin-readme"
 					v-html="dataReadme === false?'<i>No readme :&lt;</i>' :(dataReadme || '<i>Loading ...</i>')">
 				</article>

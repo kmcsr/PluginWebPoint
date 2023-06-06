@@ -1,7 +1,8 @@
 <script setup>
 import { defineProps, defineEmits, onBeforeMount, onMounted, nextTick, ref, computed, watch } from 'vue'
-import { RouterLink } from 'vue-router'
-import router from '../router'
+import { RouterLink, useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const props = defineProps({
 	'data': Array,
@@ -68,8 +69,6 @@ function updateRouter(to){
 	setTimeout(()=>{render()}, 301) // makesure the width will update after animations
 }
 
-watch(router.currentRoute, updateRouter)
-
 for(let d of props.data){
 	if(typeof d.text === 'function'){
 		d._computed = computed(d.text)
@@ -85,6 +84,7 @@ for(let d of props.data){
 }
 
 onMounted(() => {
+	watch(router.currentRoute, updateRouter)
 	updateRouter(router.currentRoute.value)
 })
 
@@ -121,15 +121,15 @@ onMounted(() => {
 .nav>a {
 	display: inline-block;
 	height: 100%;
-	padding: 0.1rem 0.4rem 0 0.4rem;
-	border-radius: 0.5rem 0.5rem 0 0;
+	padding: 0.1rem 0.6rem 0 0.6rem;
+	border-radius: 0.2rem 0.2rem 0 0;
 	transition: 0.3s all ease;
 }
 
 .nav>a.active {
 	color: var(--color-text);
 	font-weight: 600;
-	box-shadow: inset 0 -3px 5px -3px #000;
+	/*box-shadow: inset 0 -3px 5px -3px #000;*/
 }
 
 .nav>a.active:hover {

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import IconThreeDots from './icons/IconThreeDots.vue'
 import IconLeftArrowHead from './icons/IconLeftArrowHead.vue'
 import IconRightArrowHead from './icons/IconRightArrowHead.vue'
@@ -24,7 +24,6 @@ const rightDots = ref(false)
 const pageRight = ref([])
 
 function render(){
-	console.log('props:', props)
 	if(props.pageCount <= props.pageSlot){
 		pageLeft.value = []
 		leftDots.value = false
@@ -81,7 +80,9 @@ function updatePage(index){
 
 render()
 
-watch(props, render)
+onMounted(() => {
+	watch(props, render)
+})
 
 </script>
 

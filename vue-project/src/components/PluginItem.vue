@@ -28,11 +28,11 @@ defineProps({
 				</span>
 			</div>
 			<p class="description">
-				<div v-if="data.desc" v-html="tinyParser.parse($i18n.locale == 'zh_cn' ?data.desc_zhCN :data.desc)"></div>
+				<div v-if="data.desc" v-once v-html="tinyParser.parse($i18n.locale == 'zh_cn' ?data.desc_zhCN :data.desc)"></div>
 				<div v-else><i>{{ $t('message.no_description') }}</i></div>
 			</p>
 			<div class="labels">
-				<div class="label-item" v-for="label in Object.entries(data.labels).filter(([k, ok])=>ok).map(([k, _])=>k).sort()">
+				<div class="label-item" v-once v-for="label in Object.entries(data.labels).filter(([k, ok])=>ok).map(([k, _])=>k).sort()">
 					<LabelIcon :label="label" :text="$t(`label.${label}`)" size="1rem"/>
 				</div>
 			</div>

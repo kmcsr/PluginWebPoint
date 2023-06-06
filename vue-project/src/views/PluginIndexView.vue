@@ -1,17 +1,18 @@
 <script setup>
 import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
+import { useRouter, RouterLink } from 'vue-router';
 import { useRequest, usePagination } from 'vue-request'
 import TextSearch from 'vue-material-design-icons/TextSearch.vue'
 import Filter from 'vue-material-design-icons/Filter.vue'
 import SortAscending from 'vue-material-design-icons/SortAscending.vue'
 import SortDescending from 'vue-material-design-icons/SortDescending.vue'
 import axios from 'axios'
-import router from '../router'
 import { prefix as apiPrefix } from '../api'
 import LabelIcon from '../components/LabelIcon.vue'
 import PluginItem from '../components/PluginItem.vue'
 import Pagination from '../components/Pagination.vue'
-import { setMetadata } from '../metadata'
+
+const router = useRouter()
 
 const pluginList = ref(null)
 const pluginListHead = ref(null)
@@ -31,7 +32,7 @@ const {
 	listCurrentPage,
 	listPageSize,
 } = (function(){
-	console.debug('current query:', router.currentRoute.value.query)
+	// console.debug('current query:', router.currentRoute.value.query)
 	let q = router.currentRoute.value.query || {}
 	return {
 		data: ref(null),
@@ -45,6 +46,16 @@ const {
 		listPageSize: ref(Number.parseInt(q.ps) || 10),
 	}
 })()
+
+async function getPluginCounts(){
+	let res = await axios.get(`${apiPrefix}/plugins/count`, {
+		params: {
+			filterBy: textFilter.value,
+			tags: tagFilters.value.join(','),
+		}
+	})
+	return res.data.data
+}
 
 async function getPluginList(){
 	let counts = (await getPluginCounts()).total
@@ -68,16 +79,6 @@ async function getPluginList(){
 	res = res.data.data
 	res.total = counts
 	return res
-}
-
-async function getPluginCounts(){
-	let res = await axios.get(`${apiPrefix}/plugins/count`, {
-		params: {
-			filterBy: textFilter.value,
-			tags: tagFilters.value.join(','),
-		}
-	})
-	return res.data.data
 }
 
 async function refreshData(){
@@ -119,30 +120,14 @@ async function refreshNoDelay(){
 		query.ps = listPageSize.value.toString()
 	}
 	if(JSON.stringify(router.currentRoute.value.query) !== JSON.stringify(query)){
-		console.debug('from:', router.currentRoute.value.query, 'to:', query)
+		// console.debug('from:', router.currentRoute.value.query, 'to:', query)
 		router.push({ query: query })
 	}
 	return await refreshData()
 }
 
-{
-	let { current, pageSize } = usePagination(({ page, limit }) => {
-		return refreshNoDelay()
-	}, {
-		errorRetryCount: 10,
-		pagination: {
-			currentKey: 'page',
-			pageSizeKey: 'limit',
-		},
-		defaultParams: [
-			{
-				page: 1,
-				limit: 5,
-			}
-		]
-	})
-	watch(listCurrentPage, (v) => (current.value = v))
-	watch(listPageSize, (v) => (pageSize.value = v))
+if(import.meta.env.SSR){
+	await refreshNoDelay()
 }
 
 const refreshDelayed = (function(){
@@ -163,15 +148,6 @@ const refreshDelayed = (function(){
 	}
 	return refreshDelayed
 })()
-
-watch(textFilter, () => {
-	errorText.value = null
-	searching.value = true
-	refreshDelayed()
-})
-watch(tagFilters, refreshNoDelay)
-watch(sortBy, refreshNoDelay)
-watch(reverseSort, refreshNoDelay)
 
 const list = computed(() =>  (data.value) || [])
 
@@ -214,18 +190,37 @@ function onQueryChange(value){
 	}
 }
 
-watch(router.currentRoute, onQueryChange)
-
-const { unmount: unmountMeta } = setMetadata({
-	title: 'Plugin List',
-})
-
 onMounted(() => {
 	window.addEventListener('scroll', onScroll)
+	let { current, pageSize } = usePagination(({ page, limit }) => {
+		return refreshNoDelay()
+	}, {
+		errorRetryCount: 10,
+		pagination: {
+			currentKey: 'page',
+			pageSizeKey: 'limit',
+		},
+		defaultParams: [
+			{
+				page: 1,
+				limit: 5,
+			}
+		]
+	})
+	watch(listCurrentPage, (v) => (current.value = v))
+	watch(listPageSize, (v) => (pageSize.value = v))
+	watch(router.currentRoute, onQueryChange)
+	watch(textFilter, () => {
+		errorText.value = null
+		searching.value = true
+		refreshDelayed()
+	})
+	watch(tagFilters, refreshNoDelay)
+	watch(sortBy, refreshNoDelay)
+	watch(reverseSort, refreshNoDelay)
 })
 
 onUnmounted(() => {
-	unmountMeta()
 	window.removeEventListener('scroll', onScroll)
 })
 

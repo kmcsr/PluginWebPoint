@@ -1,16 +1,15 @@
 <script setup>
 import { defineProps } from 'vue'
 import Information from 'vue-material-design-icons/Information.vue'
-import ToolBox from 'vue-material-design-icons/ToolBox.vue'
+import ToolBox from 'vue-material-design-icons/Toolbox.vue'
 import Controller from 'vue-material-design-icons/Controller.vue'
 import ApiSvg from 'vue-material-design-icons/CloudPlus.vue'
-import router from '../router'
 
 const props = defineProps({
 	'label': String,
 	'text': String,
 	'fillColor': String,
-	'size': String,
+	'size': [String, Number],
 	'allowClick': Boolean,
 })
 
