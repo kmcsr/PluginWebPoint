@@ -14,7 +14,7 @@ function build(){
 	echo
 	echo "==> building $fulltag from Dockerfile.$tag"
 	echo
-	docker build --platform ${platform} \
+	DOCKER_BUILDKIT=1 docker build --platform ${platform} \
 	 --tag "$fulltag" \
 	 --file "Dockerfile.$tag" \
 	 .. || return $?
