@@ -1,6 +1,7 @@
 import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
+import ssr from 'vite-plugin-ssr/plugin'
 
 // https://vitejs.dev/config/
 export default defineConfig(async ({ command, mode }) => {
@@ -10,10 +11,13 @@ export default defineConfig(async ({ command, mode }) => {
 
 	return {
 		plugins: isdev ?[
-			await import('@vitejs/plugin-vue'),
-			await import('@vitejs/plugin-vue-jsx'),
-			await import('vite-plugin-ssr/plugin')
-		] :[],
+			(await import('@vitejs/plugin-vue'))(),
+			(await import('@vitejs/plugin-vue-jsx'))(),
+			ssr()
+		]
+		:[
+			ssr()
+		],
 		base: '/',
 		resolve: {
 			alias: {
