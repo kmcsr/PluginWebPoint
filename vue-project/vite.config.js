@@ -1,6 +1,8 @@
 import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+import vueJsx from '@vitejs/plugin-vue-jsx'
 import ssr from 'vite-plugin-ssr/plugin'
 
 // https://vitejs.dev/config/
@@ -10,12 +12,9 @@ export default defineConfig(async ({ command, mode }) => {
 	const minify = isdev ?'' :'esbuild';
 
 	return {
-		plugins: isdev ?[
-			(await import('@vitejs/plugin-vue'))(),
-			(await import('@vitejs/plugin-vue-jsx'))(),
-			ssr()
-		]
-		:[
+		plugins: [
+			vue(),
+			vueJsx(),
 			ssr()
 		],
 		base: '/',
