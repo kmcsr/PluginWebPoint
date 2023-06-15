@@ -537,6 +537,7 @@ onBeforeUnmount(() => {
 	width: 100%;
 	min-height: 6rem;
 	padding: 1rem;
+	margin: 0 1rem;
 	border-radius: 1rem;
 	border: #ff0000 solid 0.2rem;
 	background: #ffcdc7;

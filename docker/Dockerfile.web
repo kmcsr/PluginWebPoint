@@ -15,8 +15,7 @@ RUN --mount=type=cache,target=/root/.npm/_cacache \
 
 COPY "${NPM_DIR}/" "./"
 
-RUN --mount=type=cache,target=/root/.npm/_npx \
- npm run build || { cat /root/.npm/_logs/*; exit 1; }
+RUN npm run build || { cat /root/.npm/_logs/*; exit 1; }
 
 ENV NODE_ENV=production
 
