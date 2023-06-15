@@ -58,13 +58,15 @@ function render(){
 			pageRight.value.push(i)
 		}
 	}
-	console.debug('index=%d, freeSlot=%d, -freeSlot=%d', index, freeSlot, props.pageCount - freeSlot)
-	console.debug('pagination:',
-		pageLeft.value.join(','),
-		leftDots.value,
-		pageMiddle.value,
-		rightDots.value,
-		pageRight.value)
+	if(false){
+		console.debug('pagination1: index=%d, freeSlot=%d, -freeSlot=%d', index, freeSlot, props.pageCount - freeSlot)
+		console.debug('pagination2:',
+			pageLeft.value.join(','),
+			leftDots.value,
+			pageMiddle.value,
+			rightDots.value,
+			pageRight.value)
+	}
 }
 
 function updatePage(index){
@@ -88,13 +90,13 @@ onMounted(() => {
 
 <template>
 	<div class="box">
-		<div class='page-switch-button' :disabled="page <= 1" @click="updatePage(page - 1)">
+		<div class="page-switch-button" :disabled="page == 1" @click="updatePage(page - 1)">
 			<div>
 				<IconLeftArrowHead/>
 			</div>
 		</div>
 		<div v-for="i in pageLeft" :key="i"
-			class="page-index" :class="page === i?'page-index-active':''"
+			:class="['page-index', page === i?'page-index-active':'']"
 			@click="updatePage(i)">
 			{{i}}
 		</div>
@@ -110,11 +112,12 @@ onMounted(() => {
 			<IconThreeDots/>
 		</div>
 		<div v-for="i in pageRight" :key="i"
-			class="page-index" :class="page === i?'page-index-active':''"
+			:class="['page-index', page === i?'page-index-active':'']"
 			@click="updatePage(i)">
 			{{i}}
 		</div>
-		<div class='page-switch-button' :disabled="page >= pageCount" @click="updatePage(page + 1)">
+		<!--  -->
+		<div class="page-switch-button" :disabled="page >= pageCount" @click="updatePage(page + 1)">
 			<div>
 				<IconRightArrowHead/>
 			</div>

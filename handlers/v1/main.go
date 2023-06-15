@@ -300,7 +300,7 @@ func v1PluginCounts(ctx iris.Context){
 
 func v1PluginInfo(ctx iris.Context){
 	id := ctx.Params().GetString("id")
-	info, err := apiIns.GetPluginInfo(id)
+	info, err := apiIns.GetPluginInfo(id, "latest")
 	if err != nil {
 		if err == api.ErrNotFound {
 			ctx.StopWithJSON(iris.StatusNotFound, NewErrResp("NotFound", err))

@@ -65,3 +65,10 @@ and [docker](https://docs.docker.com/get-docker/) is already installed.
 
 6.
 	Finally, you can access the website at `http://localhost:2080`
+
+## Useful commands
+
+List all logs
+```shell
+docker run -it --rm -v *<random_prefix>*-pwp-logs:/logs alpine:latest
+```

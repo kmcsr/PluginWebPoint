@@ -1,6 +1,6 @@
 <script setup>
-import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
-import { useRouter, RouterLink } from 'vue-router';
+import { onMounted, onBeforeUnmount, nextTick, ref, computed, watch } from 'vue'
+import { useRouter, onBeforeRouteUpdate, RouterLink } from 'vue-router';
 import { useRequest, usePagination } from 'vue-request'
 import TextSearch from 'vue-material-design-icons/TextSearch.vue'
 import Filter from 'vue-material-design-icons/Filter.vue'
@@ -21,6 +21,9 @@ const errorText = ref(null)
 
 const pageSlot = ref(5)
 
+const defaultSortBy = 'downloads'
+const defaultPageSize = 10
+
 const {
 	data,
 	searching,
@@ -32,7 +35,7 @@ const {
 	listCurrentPage,
 	listPageSize,
 } = (function(){
-	// console.debug('current query:', router.currentRoute.value.query)
+	console.debug('current query:', router.currentRoute.value.query)
 	let q = router.currentRoute.value.query || {}
 	return {
 		data: ref(null),
@@ -40,10 +43,10 @@ const {
 		totalPage: ref(0),
 		textFilter: ref(q.q || ''),
 		tagFilters: ref(q.t ?q.t.split(',') :[]),
-		sortBy: ref(q.s || 'downloads'),
+		sortBy: ref(q.s || defaultSortBy),
 		reverseSort: ref(q.reversed === 'true'),
 		listCurrentPage: ref(Number.parseInt(q.pg) || 1),
-		listPageSize: ref(Number.parseInt(q.ps) || 10),
+		listPageSize: ref(Number.parseInt(q.ps) || defaultPageSize),
 	}
 })()
 
@@ -100,34 +103,68 @@ async function refreshData(){
 
 async function refreshNoDelay(){
 	errorText.value = null
+	const oldQuery = router.currentRoute.value.query
 	let query = {}
-	if(textFilter.value.length){
-		query.q = textFilter.value
+	let changed = false
+	if(textFilter.value !== (oldQuery.q || '')){
+		changed = 'textFilter'
+		if(textFilter.value){
+			query.q = textFilter.value
+		}
+	}else{
+		query.q = oldQuery.q
 	}
-	if(tagFilters.value.length){
-		query.t = tagFilters.value.sort().join(',')
+	let tags = tagFilters.value.sort().join(',')
+	if(tags !== (oldQuery.t || '')){
+		changed = 'tagFilters'
+		if(tags){
+			query.t = tags
+		}
+	}else{
+		query.t = oldQuery.t
 	}
-	if(sortBy.value.length){
-		query.s = sortBy.value
+	if(sortBy.value !== (oldQuery.s || defaultSortBy)){
+		changed = 'sortBy'
+		if(sortBy.value){
+			query.s = sortBy.value
+		}
+	}else{
+		query.s = oldQuery.s
 	}
-	if(reverseSort.value){
-		query.reversed = 'true'
+	let reversed = reverseSort.value ?'true' :''
+	if(reversed !== (oldQuery.reversed || '')){
+		changed = 'reverseSort'
+		if(reverseSort.value){
+			query.reversed = reversed
+		}
+	}else{
+		query.reversed = oldQuery.reversed
 	}
-	if(listCurrentPage.value > 1){
-		query.pg = listCurrentPage.value.toString()
+	if(listCurrentPage.value != (oldQuery.pg || 1)){
+		changed = 'listCurrentPage'
+		if(listCurrentPage.value > 1){
+			query.pg = listCurrentPage.value.toString()
+		}
+	}else{
+		query.pg = oldQuery.pg
 	}
-	if(listPageSize.value !== 5){
-		query.ps = listPageSize.value.toString()
+	if(listPageSize.value != (oldQuery.ps || defaultPageSize)){
+		changed = 'listPageSize'
+		if(listPageSize.value !== defaultPageSize){
+			query.ps = listPageSize.value.toString()
+		}
+	}else{
+		query.ps = oldQuery.ps
 	}
-	if(JSON.stringify(router.currentRoute.value.query) !== JSON.stringify(query)){
-		// console.debug('from:', router.currentRoute.value.query, 'to:', query)
-		router.push({ query: query })
+	if(changed){
+		console.debug('Search params changed:', changed, query)
+		await router.push({ query: query })
 	}
 	return await refreshData()
 }
 
 if(import.meta.env.SSR){
-	await refreshNoDelay()
+	await refreshData()
 }
 
 const refreshDelayed = (function(){
@@ -168,29 +205,35 @@ function onScroll(event){
 function onQueryChange(value){
 	let q = value.query
 	if(q){
-		console.debug('value.query:', q)
 		if((q.q || '') !== textFilter.value){
 			textFilter.value = q.q || ''
 		}
 		if((q.t || '') !== tagFilters.value.sort().join(',')){
 			tagFilters.value = q.t ?q.t.split(',') :[]
 		}
-		if((q.s || '') !== sortBy.value){
-			sortBy.value = q.s || ''
+		if((q.s || defaultSortBy) !== sortBy.value){
+			sortBy.value = q.s || defaultSortBy
 		}
 		if((q.reversed === 'true') !== reverseSort.value){
 			reverseSort.value = q.reversed === 'true'
 		}
-		if(q.pg && q.pg != listCurrentPage.value){
+		if((q.pg || 1) != listCurrentPage.value){
 			listCurrentPage.value = Number.parseInt(q.pg) || 1
 		}
-		if(q.ps && q.ps != listPageSize.value){
-			listPageSize.value = Number.parseInt(q.ps) || 5
+		if((q.ps || defaultPageSize) != listPageSize.value){
+			listPageSize.value = Number.parseInt(q.ps) || defaultPageSize
 		}
 	}
 }
 
+var mounting = false
+
+onBeforeRouteUpdate((to, from) => {
+	onQueryChange(to)
+})
+
 onMounted(() => {
+	mounting = true
 	window.addEventListener('scroll', onScroll)
 	let { current, pageSize } = usePagination(({ page, limit }) => {
 		return refreshNoDelay()
@@ -203,13 +246,12 @@ onMounted(() => {
 		defaultParams: [
 			{
 				page: 1,
-				limit: 5,
+				limit: defaultPageSize,
 			}
 		]
 	})
 	watch(listCurrentPage, (v) => (current.value = v))
 	watch(listPageSize, (v) => (pageSize.value = v))
-	watch(router.currentRoute, onQueryChange)
 	watch(textFilter, () => {
 		errorText.value = null
 		searching.value = true
@@ -220,7 +262,8 @@ onMounted(() => {
 	watch(reverseSort, refreshNoDelay)
 })
 
-onUnmounted(() => {
+onBeforeUnmount(() => {
+	mounting = false
 	window.removeEventListener('scroll', onScroll)
 })
 

@@ -11,51 +11,82 @@ import (
 )
 
 var (
-	PluginIdRe = regexp.MustCompile("[0-9a-z_]{1,64}")
-	VersionRe = regexp.MustCompile(`^[-+0-9A-Za-z*]+(?:\.[-+0-9A-Za-z*]+)*`)
+	PluginIdRe = regexp.MustCompile(`[0-9a-z_]{1,64}`)
+	VersionRe = regexp.MustCompile(`^((?:[xX*]|\d+)(?:\.(?:[xX*]|\d+))*)([-+][-+.0-9A-Za-z]+)?$`)
+	VersionExtraRe = regexp.MustCompile(`^|[-+0-9A-Za-z]+(?:\.[-+0-9A-Za-z]+)*$`)
 )
 
 type Version struct {
-	Major int
-	Minor int
-	Patch int
-	Desc  string
+	Comps []int
+	HasWildcard bool
+
+	Pre   string
+	Build string
 }
 
 var _ json.Unmarshaler = (*Version)(nil)
 var _ json.Marshaler = (*Version)(nil)
 
+func split(str string, s byte)(a, b string){
+	i := strings.IndexByte(str, s)
+	if i < 0 {
+		return str, ""
+	}
+	return str[:i], str[i + 1:]
+}
+
 func VersionFromString(data string)(v Version, err error){
 	if !VersionRe.MatchString(data) {
-		err = fmt.Errorf("Format error for version %q, not match version regexp", data)
+		err = fmt.Errorf("Format error for %q, not match the version regexp", data)
 		return
 	}
-	v.Major = 0
-	v.Minor = 0
-	v.Patch = 0
-	i := strings.IndexAny(data, "-+")
-	if i >= 0 {
-		data, v.Desc = data[:i], data[i + 1:]
-	}
-	if i = strings.IndexByte(data, '.'); i < 0 {
-		v.Major, err = strconv.Atoi(data)
-		return
-	}
-	if v.Major, err = strconv.Atoi(data[:i]); err != nil {
-		return
-	}
-	data = data[i + 1:]
-	if i = strings.IndexByte(data, '.'); i < 0 {
-		v.Minor, err = strconv.Atoi(data)
-		return
-	}
-	if v.Minor, err = strconv.Atoi(data[:i]); err != nil {
-		return
-	}
-	if v.Patch, err = strconv.Atoi(data[i + 1:]); err != nil {
-		return
+	data, v.Build = split(data, '+')
+	data, v.Pre = split(data, '-')
+	var n int
+	for _, x := range strings.Split(data, ".") {
+		switch x[0] {
+		case '*', 'x', 'X':
+			v.HasWildcard = true
+			n = -1
+		default:
+			if n, err = strconv.Atoi(x); err != nil {
+				return
+			}
+		}
+		v.Comps = append(v.Comps, n)
 	}
 	return
+}
+
+func (v Version)Get(i int)(int){
+	if i >= len(v.Comps) {
+		return -1
+	}
+	return v.Comps[i]
+}
+
+func (v Version)Less(o Version)(bool){
+	max := len(v.Comps)
+	if m := len(o.Comps); max < m {
+		max = m
+	}
+	for i := 0; i < max; i++ {
+		a, b := v.Get(i), o.Get(i)
+		if a >= 0 && b >= 0 && a != b {
+			return a < b
+		}
+	}
+	if len(v.Pre) != 0 {
+		if len(o.Pre) != 0 {
+			return v.Pre < o.Pre
+		}
+		return !o.HasWildcard
+	}
+	return false
+}
+
+func (v Version)Equal(o Version)(bool){
+	return !(v.Less(o) || o.Less(v))
 }
 
 func (v *Version)UnmarshalJSON(data []byte)(err error){
@@ -72,11 +103,26 @@ func (v *Version)UnmarshalJSON(data []byte)(err error){
 }
 
 func (v Version)String()(s string){
-	s = strconv.Itoa(v.Major) + "." + strconv.Itoa(v.Minor) + "." + strconv.Itoa(v.Patch)
-	if len(v.Desc) > 0 {
-		s += "-" + v.Desc
+	var sb strings.Builder
+	for i, n := range v.Comps {
+		if i != 0 {
+			sb.WriteByte('.')
+		}
+		if n < 0 {
+			sb.WriteByte('*')
+		}else{
+			sb.WriteString(strconv.Itoa(n))
+		}
 	}
-	return
+	if len(v.Pre) > 0 {
+		sb.WriteByte('-')
+		sb.WriteString(v.Pre)
+	}
+	if len(v.Build) > 0 {
+		sb.WriteByte('+')
+		sb.WriteString(v.Build)
+	}
+	return sb.String()
 }
 
 func (v Version)Value()(driver.Value, error){
@@ -159,23 +205,17 @@ func (c Cond)String()(string){
 
 type VersionCond struct {
 	Cond Cond
-	Major int
-	Minor int
-	Patch int
-	Desc  string
+	Ver  Version
 }
+
+var _ json.Unmarshaler = (*VersionCond)(nil)
+var _ json.Marshaler = (*VersionCond)(nil)
 
 var VersionMatchAny = VersionCond{
 	Cond: EQ,
-	Major: -1,
-	Minor: -1,
-	Patch: -1,
 }
 
 func VersionCondFromString(s string)(v VersionCond, err error){
-	v.Major = -1
-	v.Minor = -1
-	v.Patch = -1
 	v.Cond = EQ
 	switch s[0] {
 	case '=':
@@ -208,38 +248,7 @@ func VersionCondFromString(s string)(v VersionCond, err error){
 			v.Cond = GT
 		}
 	}
-	if !VersionRe.MatchString(s) {
-		err = fmt.Errorf("Format error for version %q, not match version regexp", s)
-		return
-	}
-	i := strings.IndexAny(s, "-+")
-	if i >= 0 {
-		s, v.Desc = s[:i], s[i + 1:]
-	}
-	if s == "*" || s == "x" {
-		return
-	}
-	if i = strings.IndexByte(s, '.'); i < 0 {
-		v.Major, err = strconv.Atoi(s)
-		return
-	}
-	if v.Major, err = strconv.Atoi(s[:i]); err != nil {
-		return
-	}
-	if s = s[i + 1:]; s == "*" || s == "x" {
-		return
-	}
-	if i = strings.IndexByte(s, '.'); i < 0 {
-		v.Minor, err = strconv.Atoi(s)
-		return
-	}
-	if v.Minor, err = strconv.Atoi(s[:i]); err != nil {
-		return
-	}
-	if s = s[i + 1:]; s == "*" || s == "x" {
-		return
-	}
-	if v.Patch, err = strconv.Atoi(s); err != nil {
+	if v.Ver, err = VersionFromString(s); err != nil {
 		return
 	}
 	return
@@ -259,26 +268,8 @@ func (v *VersionCond)UnmarshalJSON(data []byte)(err error){
 }
 
 func (v VersionCond)String()(s string){
-	s = v.Cond.String()
-	if v.Major < 0 {
-		s += "*"
-	}else{
-		s += strconv.Itoa(v.Major) + "."
-		if v.Minor < 0 {
-			s += "*"
-		}else{
-			s += strconv.Itoa(v.Minor) + "."
-			if v.Patch < 0 {
-				s += "*"
-			}else{
-				s += strconv.Itoa(v.Patch)
-			}
-		}
-	}
-	if len(v.Desc) > 0 {
-		s += "-" + v.Desc
-	}
-	return
+	s = v.Cond.String() + v.Ver.String()
+	return s
 }
 
 func (v VersionCond)MarshalJSON()([]byte, error){
@@ -289,7 +280,7 @@ func (v *VersionCond)Scan(d any)(err error){
 	s, ok := d.(string)
 	if !ok {
 		if b, ok := d.([]byte); !ok {
-			return fmt.Errorf("Unexpect type %T for Version, expect string or bytes", d)
+			return fmt.Errorf("Unexpect type %T for VersionCond, expect string or bytes", d)
 		}else{
 			s = (string)(b)
 		}
@@ -307,35 +298,96 @@ func (v VersionCond)Value()(driver.Value, error){
 }
 
 func (vc VersionCond)IsMatch(v Version)(bool){
-	if vc.Major == -1 {
-		return true
-	}
 	switch vc.Cond {
-	case EQ:
-		return (vc.Major == v.Major &&
-			(vc.Minor == -1 || (vc.Minor == v.Minor &&
-				(vc.Patch == -1 || vc.Patch == v.Patch))))
-	case LT:
-		return vc.Major < v.Major || (vc.Major == v.Major &&
-			(vc.Minor == -1 || vc.Minor < v.Minor || (vc.Minor == v.Minor &&
-				(vc.Patch == -1 || vc.Patch < v.Patch))))
 	case LE:
-		return vc.Major < v.Major || (vc.Major == v.Major &&
-			(vc.Minor == -1 || vc.Minor < v.Minor || (vc.Minor == v.Minor &&
-				(vc.Patch == -1 || vc.Patch <= v.Patch))))
-	case GT:
-		return vc.Major > v.Major || (vc.Major == v.Major &&
-			(vc.Minor == -1 || vc.Minor > v.Minor || (vc.Minor == v.Minor &&
-				(vc.Patch == -1 || vc.Patch > v.Patch))))
+		return !v.Less(vc.Ver)
 	case GE:
-		return vc.Major >= v.Major || (vc.Major == v.Major &&
-			(vc.Minor == -1 || vc.Minor >= v.Minor || (vc.Minor == v.Minor &&
-				(vc.Patch == -1 || vc.Patch >= v.Patch))))
+		return !vc.Ver.Less(v)
+	case LT:
+		return vc.Ver.Less(v)
+	case GT:
+		return v.Less(vc.Ver)
+	case EQ:
+		return vc.Ver.Equal(v)
 	case EX:
-		return vc.Major >= v.Major
+		return !v.Less(vc.Ver) && vc.Ver.Get(0) == v.Get(0)
 	case TD:
-		return (vc.Major == v.Major && vc.Minor >= v.Minor)
-	default:
-		panic("Invaild condition")
+		return !v.Less(vc.Ver) && vc.Ver.Get(0) == v.Get(0) && vc.Ver.Get(1) == v.Get(1)
 	}
+	panic("Unexpect version condition")
 }
+
+type VersionCondList []VersionCond
+
+var _ json.Unmarshaler = (*VersionCondList)(nil)
+var _ json.Marshaler = (*VersionCondList)(nil)
+
+func VersionCondListFromString(s string)(v VersionCondList, err error){
+	ss := strings.Split(s, " ")
+	v = make(VersionCondList, len(ss))
+	for i, s := range ss {
+		if v[i], err = VersionCondFromString(s); err != nil {
+			return
+		}
+	}
+	return
+}
+
+func (v *VersionCondList)UnmarshalJSON(data []byte)(err error){
+	var s string
+	if err = json.Unmarshal(data, &s); err != nil {
+		return
+	}
+	var v0 VersionCondList
+	if v0, err = VersionCondListFromString(s); err != nil {
+		return
+	}
+	*v = v0
+	return
+}
+
+func (v VersionCondList)String()(s string){
+	var sb strings.Builder
+	sb.Grow(len(v) * 8)
+	for i, vc := range v {
+		if i != 0 {
+			sb.WriteByte(' ')
+		}
+		sb.WriteString(vc.String())
+	}
+	return sb.String()
+}
+func (v VersionCondList)MarshalJSON()([]byte, error){
+	return ([]byte)("\"" + v.String() + "\""), nil
+}
+
+func (v *VersionCondList)Scan(d any)(err error){
+	s, ok := d.(string)
+	if !ok {
+		if b, ok := d.([]byte); !ok {
+			return fmt.Errorf("Unexpect type %T for VersionCondList, expect string or bytes", d)
+		}else{
+			s = (string)(b)
+		}
+	}
+	var v0 VersionCondList
+	if v0, err = VersionCondListFromString(s); err != nil {
+		return
+	}
+	*v = v0
+	return
+}
+
+func (v VersionCondList)Value()(driver.Value, error){
+	return v.String(), nil
+}
+
+func (vl VersionCondList)IsMatch(v Version)(bool){
+	for _, vc := range vl {
+		if !vc.IsMatch(v) {
+			return false
+		}
+	}
+	return true
+}
+

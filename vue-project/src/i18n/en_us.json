@@ -22,6 +22,9 @@
 		"plugin_ingame_install_cmd": "Plugin Install Command (In Game)"
 	},
 	"word": {
+		"home": "Home",
+		"plugins": "Plugins",
+		"about": "About",
 		"filters": "Filters",
 		"sortBy": "Sort By",
 		"id": "ID",
@@ -31,7 +34,7 @@
 		"downloads": "Downloads",
 		"labels": "Labels",
 		"links": "Links",
-		"readme": "Readme",
+		"introduce": "Introduce",
 		"dependencies": "Dependencies",
 		"requirements": "Python Package Requirements",
 		"require": "Require",

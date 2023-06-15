@@ -8,15 +8,25 @@ export const passToClient = ['pageProps', 'documentProps', 'i18nLocale']
 export async function render(pageContext){
 	const { app, router } = await createApp(pageContext)
 
-	router.push(pageContext.urlPathname)
+	await router.push(pageContext.urlOriginal)
 	await router.isReady()
-	const is404 = router.currentRoute.value.meta && router.currentRoute.value.meta.is404
+	const route = router.currentRoute.value
+	const meta = route.meta
+	const is404 = meta.is404
 
 	const stream = await renderToNodeStream(app)
 
-	var title = router.currentRoute.value.meta && router.currentRoute.value.meta.title
+	var keywords = ['mcdr', 'mcdreforged', 'minecraft', 'plugin', 'api']
+	var description = meta.description
+	if(typeof description === 'function'){
+		description = description(route)
+	}
+	if(!description){
+		description = 'An MCDReforged plugin list access point'
+	}
+	var title = meta.title
 	if(typeof title === 'function'){
-		title = title(router.currentRoute.value)
+		title = title(route)
 	}
 	if(title){
 		title += ' - '
@@ -30,13 +40,14 @@ export async function render(pageContext){
 				<title>${title}MCDReforged Plugin List</title>
 				<meta charset="UTF-8">
 				<link rel="icon" href="/assets/favicon.ico">
-				<meta name="keywords" content="mcdr,mcdreforged,minecraft,plugin,api">
-				<meta name="description" content="An MCDReforged plugin list access point">
+				<meta name="keywords" content="${keywords.join(',')}">
+				<meta name="description" content="${description}">
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
 				<link rel="stylesheet" type="text/css" href="/assets/main.css">
 			</head>
 			<body>
 				<div id="app">${stream}</div>
+				<script defer async id="mermaid-script" type="text/javascript" src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 			</body>
 		</html>
 	`

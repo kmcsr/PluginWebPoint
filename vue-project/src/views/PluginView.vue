@@ -1,5 +1,5 @@
  <script setup>
-import { onMounted, onUnmounted, nextTick, ref, computed, watch } from 'vue'
+import { onMounted, onBeforeUnmount, nextTick, ref, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useRequest } from 'vue-request'
 import { useI18n } from 'vue-i18n'
@@ -16,11 +16,13 @@ import CopyableText from '../components/CopyableText.vue'
 import BackToTop from '../components/BackToTop.vue'
 import { setMetadata } from '../metadata.js'
 import { prefix as apiPrefix } from '../api'
-import { fmtSize, fmtTimestamp, sinceDate, fmtDateTime, waitScriptLoaded, tinyParser } from '../utils'
+import { fmtSize, fmtTimestamp, sinceDate, fmtDateTime, tinyParser, newTrigger, loadMermaid } from '../utils'
 
 const props = defineProps({
 	'plugin': String,
 })
+
+console.debug('plugin view loading:', props.plugin)
 
 if(props.plugin === 'mcdreforged'){
 	window.location.replace('https://github.com/Fallen-Breath/MCDReforged')
@@ -30,13 +32,13 @@ const errorText = ref(null)
 
 const { t } = useI18n()
 
-const navActive = ref('readme')
+const navActive = ref('introduce')
 const navData = [
 	{
-		id: 'readme',
-		path: '',
+		id: 'introduce',
+		path: '?i=info',
 		exactQueryNames: ['i'],
-		text: () => t('word.readme'),
+		text: () => t('word.introduce'),
 	},
 	{
 		id: 'depend',
@@ -52,81 +54,40 @@ const navData = [
 	}
 ]
 
-var unmountCall = null
+var data, dataReadme, dataReleases
 
-const { data, run: getPluginInfo } = useRequest(async () => {
+async function loadDatas(){
 	try{
 		let res = await axios.get(`${apiPrefix}/plugin/${props.plugin}/info`)
-		res = res.data.data
-		if(!unmountCall){
-			({ unmount: unmountCall } = setMetadata({
-				title: res.name,
-				keywords: [res.id, res.name],
-				description: {
-					'': res.desc,
-					'zh': res.desc_zhCN || res.desc,
+		data = res.data.data
+		let [res1, res2] = await Promise.all([
+			axios.get(`${apiPrefix}/plugin/${props.plugin}/readme`, {
+				params: {
+					render: true,
 				}
-			}))
-		}
-		return res
+			}).catch(err => {
+				console.error('Error when getting readme:', err.toString())
+			}),
+			axios.get(`${apiPrefix}/plugin/${props.plugin}/releases`).catch(err => {
+				console.error('Error when getting releases:', err.toString())
+			})
+		])
+		dataReadme = res1.data
+		dataReleases = res2.data.data
 	}catch(err){
-		console.error('Error when fetching plugin data:', err)
 		if(err.response && err.response.data){
 			errorText.value = err.response.data.err + ': ' + err.response.data.message
 		}else{
 			errorText.value = err.code + ': ' + err.message
 		}
-		throw err
 	}
-})
-
-const { data: dataReadme, run: getPluginReadme } = useRequest(async () => {
-	try{
-		const res = await axios.get(`${apiPrefix}/plugin/${props.plugin}/readme`, {
-			params: {
-				render: true,
-			}
-		})
-		const data = res.data
-		return data
-	}catch(err){
-		if(err.response){
-			if(err.response.status === 404){
-				return false
-			}
-		}
-		console.error('Error when getting readme:', err)
-		throw err
-	}
-})
-
-watch(dataReadme, async () => {
-	let marmaidScript = document.getElementById('mermaid-script')
-	if(!marmaidScript){
-		marmaidScript = document.createElement('script')
-		marmaidScript.id = 'mermaid-script'
-		marmaidScript.type = 'text/javascript'
-		marmaidScript.src = 'https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js'
-		document.body.appendChild(marmaidScript)
-	}
-	await nextTick()
-	if(!window.mermaid){
-		await waitScriptLoaded(marmaidScript)
-	}
-	window.mermaid.contentLoaded()
-})
-
-const { data: dataReleases, run: getPluginReleases } = useRequest(async () => {
-	return (await axios.get(`${apiPrefix}/plugin/${props.plugin}/releases`)).data.data
-})
-
-const requireInstallCmd = computed(() => ((data.value && data.value.requirements) ? 
-	("pip3 install " + Object.entries(data.value.requirements).map(([id, cond])=>`'${id}${cond}'`).join(' '))
-	: ""))
-
-async function freshData(){
-	return await Promise.all([ getPluginInfo(), getPluginReadme(), getPluginReleases() ])
 }
+
+await loadDatas()
+
+const requireInstallCmd = (data && data.requirements)
+	? ("python3 -m pip install " + Object.entries(data.requirements).map(([id, cond])=>`'${id}${cond}'`).join(' '))
+	: null
 
 function pluginDependUrl(id){
 	if(id === 'mcdreforged'){
@@ -135,11 +96,21 @@ function pluginDependUrl(id){
 	return `/plugin/${id}`
 }
 
+var unmountCall = null
+
 onMounted(() => {
-	// freshData()
+	loadMermaid();
+	// ({ unmount: unmountCall } = setMetadata({
+	// 	title: data.name,
+	// 	keywords: [data.id, data.name],
+	// 	description: {
+	// 		'': data.desc,
+	// 		'zh': data.desc_zhCN || data.desc,
+	// 	}
+	// }))
 })
 
-onUnmounted(() => {
+onBeforeUnmount(() => {
 	if(unmountCall){
 		unmountCall()
 		unmountCall = null
@@ -236,7 +207,7 @@ onUnmounted(() => {
 			</div>
 			<div class="plugin-main-box">
 				<SlideNav :data="navData" between="0.2rem" default="readme" v-model:active="navActive" :replace="true"/>
-				<article v-if="navActive === 'readme'" class="markdown-body plugin-readme"
+				<article v-if="navActive === 'introduce'" class="markdown-body plugin-readme"
 					v-html="dataReadme === false?'<i>No readme :&lt;</i>' :(dataReadme || '<i>Loading ...</i>')">
 				</article>
 				<article v-else-if="navActive === 'depend'">

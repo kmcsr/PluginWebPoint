@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -232,7 +233,7 @@ func (api *MySqlAPI)GetPluginIdList(opt PluginListOpt)(ids []string, err error){
 	return
 }
 
-func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
+func (api *MySqlAPI)GetPluginInfos(id string)(infos []*PluginInfo, err error){
 	const queryCmd = "SELECT a.`name`,a.`version`,a.`authors`,a.`desc`,a.`desc_zhCN`," +
 		"CONVERT_TZ(a.`createAt`,@@session.time_zone,'+00:00') AS `utc_createAt`," +
 		"CONVERT_TZ(a.`lastRelease`,@@session.time_zone,'+00:00') AS `utc_lastRelease`," +
@@ -244,11 +245,38 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 		" FROM plugins as a LEFT JOIN plugin_releases as b" +
 		" ON a.`id`=b.`id` WHERE a.`id`=? AND a.`enabled`=TRUE" +
 		" GROUP BY a.`id`"
-	const queryDependenciesCmd = "SELECT `target`,`tag` FROM plugin_dependencies WHERE `id`=?"
-	const queryRequirementsCmd = "SELECT `target`,`tag` FROM plugin_requirements WHERE `id`=?"
+	const queryDependenciesCmd = "SELECT `target`,`tag`" +
+		" FROM plugin_dependencies WHERE `id`=?"
+	const queryRequirementsCmd = "SELECT `target`,`tag`" +
+		" FROM plugin_requirements WHERE `id`=?"
+	panic("TODO")
+	return
+}
+
+// TODO: query version
+func (api *MySqlAPI)GetPluginInfo(id string, version string)(info *PluginInfo, err error){
+	const queryCmd = "SELECT a.`name`,a.`version`,a.`authors`,a.`desc`,a.`desc_zhCN`," +
+		"CONVERT_TZ(a.`createAt`,@@session.time_zone,'+00:00') AS `utc_createAt`," +
+		"CONVERT_TZ(a.`lastRelease`,@@session.time_zone,'+00:00') AS `utc_lastRelease`," +
+		"a.`repo`,a.`repo_branch`,a.`repo_subdir`,a.`link`," +
+		"`label_information`,`label_tool`,`label_management`,`label_api`," +
+		"`github_sync`,`ghRepoOwner`,`ghRepoName`," +
+		"CONVERT_TZ(`last_sync`,@@session.time_zone,'+00:00') AS `utc_last_sync`," +
+		"SUM(b.`downloads`) AS `downloads`" +
+		" FROM plugins as a LEFT JOIN plugin_releases as b" +
+		" ON a.`id`=b.`id` WHERE a.`id`=? AND a.`enabled`=TRUE" +
+		" GROUP BY a.`id`"
+	const queryDependenciesCmd = "SELECT `target`,`tag`" +
+		" FROM plugin_dependencies WHERE `id`=?" // TODO: AND `version`=?
+	const queryRequirementsCmd = "SELECT `target`,`tag`" +
+		" FROM plugin_requirements WHERE `id`=?"
 	var (
 		authors string
 	)
+
+	if version != "latest" && version != "" {
+		panic("Unsupport argument 'version'")
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 7)
 	defer cancel()
@@ -292,7 +320,7 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 		defer rows.Close()
 		var (
 			pid string
-			cond VersionCond
+			cond VersionCondList
 		)
 		for rows.Next() {
 			if err = rows.Scan(&pid, &cond); err != nil  {
@@ -328,7 +356,7 @@ func (api *MySqlAPI)GetPluginInfo(id string)(info *PluginInfo, err error){
 
 func (api *MySqlAPI)GetPluginReadme(id string)(content Content, err error){
 	var info *PluginInfo
-	if info, err = api.GetPluginInfo(id); err != nil {
+	if info, err = api.GetPluginInfo(id, "latest"); err != nil {
 		return
 	}
 	if !info.GithubSync {
@@ -444,6 +472,7 @@ func (api *MySqlAPI)GetPluginReleases(id string)(releases []*PluginRelease, err 
 	if err = rows.Err(); err != nil {
 		return
 	}
+	sort.Slice(releases, func(i, j int)(bool){ return releases[i].Tag.Less(releases[j].Tag) })
 	return
 }
 

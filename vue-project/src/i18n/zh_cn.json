@@ -22,6 +22,9 @@
 		"plugin_ingame_install_cmd": "插件安装指令 (游戏内)"
 	},
 	"word": {
+		"home": "主页",
+		"plugins": "插件列表",
+		"about": "关于",
 		"filters": "过滤器",
 		"sortBy": "排序方式",
 		"id": "ID",
@@ -31,7 +34,7 @@
 		"downloads": "下载",
 		"labels": "标签",
 		"links": "链接",
-		"readme": "介绍",
+		"introduce": "介绍",
 		"dependencies": "依赖",
 		"requirements": "需要的Python包",
 		"require": "需求",

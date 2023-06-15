@@ -45,6 +45,10 @@ export function fmtTimestamp(ts, n){
 				if(ts > 24){
 					ts /= 24
 					unit = 'd'
+					if(ts > 356){
+						ts /= 356
+						unit = 'years'
+					}
 				}
 			}
 		}
@@ -254,4 +258,27 @@ export function waitScriptLoaded(script){
 	return new Promise((resolve) => {
 		script.onload = resolve
 	})
+}
+
+export function newTrigger(){
+	let r
+	let p = new Promise((resolve) => {
+		r = resolve
+	})
+	return { p: p, send: r }
+}
+
+export async function loadMermaid(){
+	let marmaidScript = document.getElementById('mermaid-script')
+	if(!marmaidScript){
+		marmaidScript = document.createElement('script')
+		marmaidScript.id = 'mermaid-script'
+		marmaidScript.type = 'text/javascript'
+		marmaidScript.src = 'https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js'
+		document.body.appendChild(marmaidScript)
+	}
+	if(!window.mermaid){
+		await waitScriptLoaded(marmaidScript)
+	}
+	window.mermaid.contentLoaded()
 }

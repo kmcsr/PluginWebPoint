@@ -1,7 +1,7 @@
 #!/bin/bash
 
 PUBLIC_PREFIX=craftmine/pwp
-BUILD_PLATFORMS=(linux/amd64) #linux/arm64
+BUILD_PLATFORMS=(linux/arm64 linux/amd64) #
 
 NPM_DIR=vue-project
 
@@ -29,11 +29,11 @@ function build(){
 }
 
 echo
-cur="${PWD}"
-cd "../$NPM_DIR"
-npm install || exit $?
-npm run build || exit $?
-cd "$cur"
+# cur="${PWD}"
+# cd "../$NPM_DIR"
+# npm install || exit $?
+# npm run build || exit $?
+# cd "$cur"
 
 for platform in "${BUILD_PLATFORMS[@]}"; do
 	build web $platform || exit $?

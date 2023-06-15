@@ -45,7 +45,7 @@ func initLogger()(loger logger.Logger){
 var DB *sql.DB = initDB()
 
 const (
-	maxConn = 16
+	maxConn = 128
 )
 
 func initDB()(DB *sql.DB){
@@ -61,8 +61,8 @@ func initDB()(DB *sql.DB){
 		loger.Fatalf("Cannot connect to database: %v", err)
 	}
 	DB.SetConnMaxLifetime(time.Minute * 3)
-	DB.SetMaxOpenConns(maxConn * 2 + 3)
-	DB.SetMaxIdleConns(maxConn)
+	DB.SetMaxOpenConns(maxConn)
+	DB.SetMaxIdleConns(16)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 3)
 	defer cancel()
@@ -139,8 +139,8 @@ type PluginInfo struct{
 	Labels Labels `json:"labels"`
 }
 
-type DependMap map[string]api.VersionCond
-type Requirements []string
+type DependMap = map[string]api.VersionCondList
+type Requirements = []string
 
 type PluginMeta struct{
 	Id string `json:"id"`
@@ -245,6 +245,8 @@ func ExecTx(tx *sql.Tx, cmd string, args ...any)(res sql.Result, err error){
 }
 
 func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err error){
+	const queryGhSyncCmd = "SELECT `github_sync`" +
+		" FROM plugins WHERE `id`=?"
 	const insertCmd = "INSERT INTO plugins (`id`,`name`,`enabled`,`version`,`authors`,`desc`,`desc_zhCN`," +
 		"`repo`,`repo_branch`,`repo_subdir`,`link`," +
 		"`label_information`,`label_tool`,`label_management`,`label_api`," +
@@ -344,8 +346,7 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 	defer conn.Close()
 
 	var flag sql.NullBool
-	if err = conn.QueryRowContext(ctx, "SELECT `github_sync`" +
-		" FROM plugins WHERE `id`=?", info.Id).Scan(&flag); err != nil && err != sql.ErrNoRows {
+	if err = conn.QueryRowContext(ctx, queryGhSyncCmd, info.Id).Scan(&flag); err != nil && err != sql.ErrNoRows {
 		return
 	}
 	if flag.Valid && !flag.Bool {
@@ -420,6 +421,65 @@ func updateSql(info PluginInfo, meta PluginMeta, releases PluginRelease)(err err
 	return
 }
 
+func getOnlinePlugins()(plugins []string, err error){
+	const queryCmd = "SELECT `id`" +
+		" FROM plugins WHERE `enabled`=TRUE AND `github_sync`=TRUE"
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
+	defer cancel()
+
+	conn, err := getDBConn(ctx)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	var rows *sql.Rows
+	if rows, err = conn.QueryContext(ctx, queryCmd); err != nil {
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			return
+		}
+		plugins = append(plugins, id)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+	return
+}
+
+func deletePlugin(plugin string)(err error){
+	const deleteCmd = "DELETE FROM plugins WHERE `id`=?"
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
+	defer cancel()
+
+	conn, err := getDBConn(ctx)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return
+	}
+	defer tx.Rollback()
+
+	if _, err = ExecTx(tx, deleteCmd, plugin); err != nil {
+		return
+	}
+
+	if err = tx.Commit(); err != nil {
+		return
+	}
+	return
+}
+
 func main(){
 	dir, err := os.MkdirTemp("", "gh_sync")
 	if err != nil {
@@ -435,13 +495,37 @@ func main(){
 		loger.Fatalf("Cannot execute git clone: %v", err)
 	}
 	pluginsPath := filepath.Join(dir, path.Base(target), "plugins")
-	plugins, err := os.ReadDir(pluginsPath)
+	pluginsFs, err := os.ReadDir(pluginsPath)
 	if err != nil {
 		loger.Panic(err)
 	}
+	plugins := make([]string, len(pluginsFs))
+	for i, p := range pluginsFs {
+		plugins[i] = p.Name()
+	}
+	sort.Strings(plugins)
 
 	var wg sync.WaitGroup
-	for _, p := range plugins {
+
+	onlinePlugins, err := getOnlinePlugins()
+	if err != nil {
+		loger.Panic(err)
+	}
+	for _, p := range onlinePlugins {
+		i := sort.SearchStrings(plugins, p)
+		if i >= len(plugins) || plugins[i] != p { // delete the plugin
+			loger.Warnf("Deleted plugin %s", p)
+			wg.Add(1)
+			go func(p string){
+				defer wg.Done()
+				if err := deletePlugin(p); err != nil {
+					loger.Errorf("[%s] cannot remove deleted plugin from database: %v", p, err)
+				}
+			}(p)
+		}
+	}
+
+	for _, p := range pluginsFs {
 		if p.IsDir() {
 			infop := filepath.Join(pluginsPath, p.Name(), "plugin_info.json")
 			infob, err := os.ReadFile(infop)
@@ -456,7 +540,7 @@ func main(){
 			}
 			if info.Disable {
 				loger.Warnf("disabled plugin %s", info.Id)
-				continue
+				// continue
 			}
 			wg.Add(1)
 			go func(info PluginInfo){

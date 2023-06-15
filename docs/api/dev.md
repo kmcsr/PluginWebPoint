@@ -239,7 +239,8 @@ The charset is `utf8`
 		```js
 		{
 			"status": "ok",
-			"data": [ // List of releases, see below `/plugin/{id:string}/release/{tag:string}/`
+			"data": [ // List of releases, sorted by decreasing version
+				// For elements struct, see below `/plugin/{id:string}/release/{tag:string}/`
 			]
 		}
 		```
@@ -284,4 +285,16 @@ The charset is `utf8`
 	- StatusCode: `200` OK
 	- Content-Type: `*/*`
 	- Payload: The asset file
+
+## `/plugin/{id:string}/release/{tag:string}/changelog`
+
+- Description:
+	Get the plugin release changelog
+- Request:
+	- Method: `GET`
+	- Payload: *None*
+- Response:
+	- StatusCode: `200` OK
+	- Content-Type: `text/plain`
+	- Payload: The change log
 

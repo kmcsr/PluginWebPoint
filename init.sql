@@ -4,11 +4,11 @@
 USE pluginDatabase;
 
 CREATE TABLE IF NOT EXISTS plugins (
-	`id` VARCHAR(64) NOT NULL,
+	`id`   VARCHAR(64) NOT NULL,
+	`name` VARCHAR(64) NOT NULL,
 	PRIMARY KEY (`id`)
 )ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-ALTER TABLE plugins ADD `name`        VARCHAR(64) NOT NULL;
 ALTER TABLE plugins ADD `enabled`     BOOLEAN DEFAULT FALSE NOT NULL;
 ALTER TABLE plugins ADD `version`     VARCHAR(32) NOT NULL;
 ALTER TABLE plugins ADD `authors`     VARCHAR(64) NOT NULL;

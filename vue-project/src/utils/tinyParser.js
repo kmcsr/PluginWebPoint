@@ -69,7 +69,7 @@ export function parseCodes(content){
 		// let obj = document.createElement('code')
 		// obj.innerText = codes
 		// output += nodeToString(obj)
-		output += `<code>${escapeHtml(name)}</code>`
+		output += `<code>${escapeHtml(codes)}</code>`
 	}
 	if(content){
 		output += content

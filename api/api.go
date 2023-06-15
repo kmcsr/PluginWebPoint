@@ -36,7 +36,7 @@ type PluginLabels struct {
 	Api         bool `json:"api,omitempty"`
 }
 
-type DependMap map[string]VersionCond
+type DependMap map[string]VersionCondList
 type RequireMap map[string]string
 
 type PluginInfo struct {
@@ -104,7 +104,8 @@ type API interface {
 	GetPluginCounts(opt PluginListOpt)(count PluginCounts, err error)
 	GetPluginList(opt PluginListOpt)(infos []*PluginInfo, err error)
 	GetPluginIdList(opt PluginListOpt)(ids []string, err error)
-	GetPluginInfo(id string)(info *PluginInfo, err error)
+	GetPluginInfo(id string, version string)(info *PluginInfo, err error)
+	GetPluginInfos(id string)(info []*PluginInfo, err error)
 	GetPluginReadme(id string)(content Content, err error)
 	GetPluginReleases(id string)(releases []*PluginRelease, err error)
 	GetPluginRelease(id string, tag Version)(release *PluginRelease, err error)

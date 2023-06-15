@@ -3,6 +3,7 @@
 	"port": 80,
 	"web": "http://web:80",
 	"apis": {
+		"dev": "http://api_dev:80",
 		"v1": "http://api_v1:80"
 	}
 }

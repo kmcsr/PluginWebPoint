@@ -59,7 +59,9 @@ onUnmounted(() => {
 			</a>
 		</div>
 		<nav class="header-nav">
-			<a href="/about">About</a>
+			<a class="hidden-for-mobile" href="/">{{$t(`word.home`)}}</a>
+			<a class="hidden-for-mobile" href="/plugins">{{$t(`word.plugins`)}}</a>
+			<a href="/about">{{$t(`word.about`)}}</a>
 		</nav>
 		<div class="locale-selector">
 			<label for="i18n-lang-select">
@@ -76,7 +78,17 @@ onUnmounted(() => {
 		</div>
 	</header>
 	<div id="body">
-		<RouterView/>
+		<RouterView v-slot="{ Component }"> 
+			<!-- https://vuejs.org/guide/built-ins/suspense.html#combining-with-other-components -->
+			<template v-if="Component">
+				<Suspense>
+					<component :is="Component"></component>
+					<template #fallback>
+						Loading...
+					</template>
+				</Suspense>
+			</template>
+		</RouterView>
 	</div>
 	<footer id="footer">
 		<p>
@@ -104,11 +116,12 @@ onUnmounted(() => {
 	background: var(--color-background-soft);
 	box-shadow: 0 0 0.5rem #000a;
 	z-index: 10;
+	overflow-x: scroll; /* TODO: suitable header for mobile */
 }
 
 #body {
-  padding: 0 0.8rem;
-  overflow: scroll;
+	padding: 0 0.8rem;
+	/*overflow: hidden;*/
 }
 
 #footer {
@@ -159,7 +172,7 @@ onUnmounted(() => {
 }
 
 #i18n-lang-select {
-	width: 7rem;
+	width: 5rem;
 	height: 2rem;
 	border-radius: 0.3rem;
 	color: var(--color-text);
@@ -167,12 +180,18 @@ onUnmounted(() => {
 }
 
 .theme-button {
-	width: 1.7rem;
+	min-width: 1.7rem;
 	height: 1.7rem;
 	padding: 0.25rem;
 	border-radius: 0.25rem;
 	background: var(--color-background-3);
 	cursor: pointer;
+}
+
+@media (max-width: 30rem){
+	.hidden-for-mobile {
+		display: none !important;
+	}
 }
 
 </style>

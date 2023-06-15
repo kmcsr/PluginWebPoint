@@ -317,7 +317,7 @@ func devPluginSitemapTxt(ctx iris.Context){
 
 func devPluginInfo(ctx iris.Context){
 	id := ctx.Params().GetString("id")
-	info, err := apiIns.GetPluginInfo(id)
+	info, err := apiIns.GetPluginInfo(id, "")
 	if err != nil {
 		if err == api.ErrNotFound {
 			ctx.StopWithJSON(iris.StatusNotFound, NewErrResp("NotFound", err))
@@ -416,5 +416,6 @@ func devPluginAsset(ctx iris.Context){
 		return
 	}
 	defer fd.Close()
+	ctx.ResponseWriter().Header().Set(irisContext.ContentDispositionHeaderKey, irisContext.MakeDisposition(filename))
 	ctx.ServeContent(fd, filename, modTime)
 }

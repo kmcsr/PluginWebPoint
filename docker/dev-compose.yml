@@ -7,7 +7,7 @@ services:
       - pwp-logs:/var/log
       - pwp-db:/var/lib/mysql
     networks:
-      - pwebpoint
+      - pwebpoint-dev
     environment:
       MYSQL_DATABASE: pluginDatabase # must be sync from init.sql
       MYSQL_USER: pwp_user
@@ -15,7 +15,9 @@ services:
       MYSQL_ALLOW_EMPTY_PASSWORD: yes # don't have to public the database, no need to encrypt it
       MYSQL_INITDB_SKIP_TZINFO: yes
   ghupdater:
-    image: craftmine/pwp:ghupdater
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile.ghupdater
     restart: always
     stop_signal: SIGKILL # use sigkill to stop container immediately because the init process won't pass the signals
     depends_on:
@@ -23,25 +25,36 @@ services:
     volumes:
       - pwp-logs:/var/log
     networks:
-      - pwebpoint
+      - pwebpoint-dev
     environment:
-      DEBUG: '${DEBUG}'
+      DEBUG: true
       DB_USER: pwp_user
       DB_PASSWD: pwp_password
       DB_ADDR: tcp(db:3306)
       DB_NAME: pluginDatabase
   web:
-    image: craftmine/pwp:web
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile.web.dev
     restart: always
+    ports:
+      - "24678:24678" # for the debug websocket
     volumes:
       - pwp-logs:/var/log
+      - ${PWD}/../vue-project/src:/app/src
+      - ${PWD}/../vue-project/pages:/app/pages
+      - ${PWD}/../vue-project/public:/app/public
     networks:
-      - pwebpoint
+      - pwebpoint-dev
     environment:
-      DEBUG: '${DEBUG}'
-      API_V1_HOST: 'http://api_v1:80'
-  api_v1:
-    image: craftmine/pwp:v1
+      DEBUG: true
+      API_DEV_HOST: 'http://api_dev:80'
+      # API_V1_HOST: 'http://api_v1:80'
+      NODE_ENV: development
+  api_dev:
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile.v-dev
     restart: always
     depends_on:
       - db
@@ -51,21 +64,41 @@ services:
         source: ./gh_secrets.json
         target: /etc/pwp/gh_secrets.json
     networks:
-      - pwebpoint
+      - pwebpoint-dev
     environment:
-      DEBUG: '${DEBUG}'
+      DEBUG: true
       DB_USER: pwp_user
       DB_PASSWD: pwp_password
       DB_ADDR: tcp(db:3306)
       DB_NAME: pluginDatabase
+  # api_v1:
+  #   image: craftmine/pwp:v1
+  #   restart: always
+  #   depends_on:
+  #     - db
+  #   volumes:
+  #     - pwp-logs:/var/log
+  #     - type: bind
+  #       source: ./gh_secrets.json
+  #       target: /etc/pwp/gh_secrets.json
+  #   networks:
+  #     - pwebpoint-dev
+  #   environment:
+  #     DEBUG: true
+  #     DB_USER: pwp_user
+  #     DB_PASSWD: pwp_password
+  #     DB_ADDR: tcp(db:3306)
+  #     DB_NAME: pluginDatabase
   reverse_proxy:
-    image: craftmine/pwp:reverse_proxy
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile.reverse_proxy
     networks:
-      - pwebpoint
+      - pwebpoint-dev
     environment:
-      DEBUG: '${DEBUG}'
+      DEBUG: false
     ports:
-      - "2080:80"
+      - "3000:80"
     volumes:
       - pwp-logs:/var/log
 
@@ -74,5 +107,5 @@ volumes:
   pwp-db: {}
 
 networks:
-  pwebpoint:
-    name: pwp_backend_network
+  pwebpoint-dev:
+    name: pwp_backend_network-dev

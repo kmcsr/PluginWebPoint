@@ -11,13 +11,10 @@ ARG NPM_DIR
 
 COPY ["${NPM_DIR}/package.json", "${NPM_DIR}/package-lock.json", "./"]
 RUN --mount=type=cache,target=/root/.npm/_cacache \
- npm ci --production --prefer-offline --progress=false || { cat /root/.npm/_logs/*; exit 1; }
+ npm ci --prefer-offline --progress=false || { cat /root/.npm/_logs/*; exit 1; }
 
 COPY "${NPM_DIR}/" "./"
 
-RUN --mount=type=cache,target=/root/.npm/_npx \
- npm run build --debug || { cat /root/.npm/_logs/*; exit 1; }
+ENV NODE_ENV=development
 
-ENV NODE_ENV=production
-
-CMD ["node", "./server", "80"]
+CMD ["npm", "run", "dev", "80"]

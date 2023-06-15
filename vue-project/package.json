@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "node ./server",
+    "dev": "NODE_ENV=development node ./server",
     "build": "vite build",
     "build_dev": "vite build --mode development --debug true",
     "build_watch": "vite build --mode development --debug true --watch true --clearScreen false",
