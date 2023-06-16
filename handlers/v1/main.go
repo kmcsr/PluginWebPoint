@@ -49,6 +49,7 @@ func NewErrResp(name string, err error)(*ErrResp){
 	}
 }
 
+var sitePrefix string = "https://mcdr.waerba.com"
 var apiIns api.API = nil
 
 func main(){
@@ -114,6 +115,7 @@ func main(){
 		p.Get("/", v1Plugins)
 		p.Get("/ids", v1PluginIds)
 		p.Get("/count", v1PluginCounts)
+		p.Get("/sitemap.txt", v1PluginSitemapTxt)
 	})
 	app.PartyFunc("/plugin/{id:string pid()}", func(p iris.Party){
 		p.Get("/info", checkIfNotModifiedPluginInfo, v1PluginInfo)
@@ -296,6 +298,20 @@ func v1PluginCounts(ctx iris.Context){
 		return
 	}
 	ctx.JSON(NewOkResp(counts))
+}
+
+func v1PluginSitemapTxt(ctx iris.Context){
+	payload, _ := ctx.Values().Get(keyPluginListOption).(api.PluginListOpt)
+	list, err := apiIns.GetPluginIdList(payload)
+	if err != nil {
+		ctx.StopWithJSON(iris.StatusInternalServerError, NewErrResp("ApiErr", err))
+		return
+	}
+	sites := &strings.Builder{}
+	for _, id := range list {
+		sites.WriteString(fmt.Sprintf("%s/plugin/%s\n", sitePrefix, id))
+	}
+	ctx.Text(sites.String())
 }
 
 func v1PluginInfo(ctx iris.Context){
