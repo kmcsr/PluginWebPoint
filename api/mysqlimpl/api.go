@@ -443,7 +443,7 @@ func (api *MySqlAPI)GetPluginReleases(id string)(releases []*PluginRelease, err 
 	const queryCmd = "SELECT `tag`,`enabled`,`stable`,`size`," +
 		"CONVERT_TZ(`uploaded`,@@session.time_zone,'+00:00') AS `utc_uploaded`," +
 		"`filename`,`downloads`,`github_url`" +
-		" FROM plugin_releases WHERE `id`=? ORDER BY `uploaded` DESC"
+		" FROM plugin_releases WHERE `id`=?"
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
 	defer cancel()
@@ -472,7 +472,7 @@ func (api *MySqlAPI)GetPluginReleases(id string)(releases []*PluginRelease, err 
 	if err = rows.Err(); err != nil {
 		return
 	}
-	sort.Slice(releases, func(i, j int)(bool){ return releases[i].Tag.Less(releases[j].Tag) })
+	sort.Slice(releases, func(i, j int)(bool){ return !releases[i].Tag.Less(releases[j].Tag) })
 	return
 }
 
