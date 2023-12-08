@@ -18,7 +18,7 @@ const codePatten = /(`+)([^\1]+?)\1/
 // })()
 
 export function escapeHtml(content){
-	return content
+	return !content ?'' :content
 		.replaceAll('&', '&amp;')
 		.replaceAll('<', '&lt;')
 		.replaceAll('>', '&gt;')

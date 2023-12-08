@@ -12,8 +12,8 @@ const onClient = typeof document !== 'undefined'
 
 export async function setupI18n(lang){
 	const cookies = onClient ?await import('vue-cookies') :null
-	if(!lang){
-		lang = (await import('vue-cookies')).get(LANG_COOKIE)
+	if(!lang && cookies){
+		lang = cookies.get(LANG_COOKIE)
 	}
 	if(!lang){
 		for(let l of window.navigator.languages){
